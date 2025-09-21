@@ -374,6 +374,7 @@ conda activate dinov3-yolov12
 # 3. Install dependencies
 pip install -r requirements.txt
 pip install transformers  # For DINOv3 models
+pip install -r requirements_streamlit.txt  # For Streamlit web interface
 pip install -e .
 
 # 4. Verify installation
@@ -386,6 +387,9 @@ python train_yolov12_dino.py \
     --dino-input dinov3_vitb16 \
     --epochs 1 \
     --name quick_test
+
+# 6. Test Streamlit interface (optional)
+python launch_streamlit.py
 ```
 
 ### ⚡ **One-Command Quick Start**
@@ -507,9 +511,50 @@ results = model.train(
 
 ## 🔍 Inference & Prediction
 
-### 🖥️ **Interactive Gradio Web Interface**
+### 🖥️ **Interactive Web Interfaces**
 
-Launch the **web-based interface** for easy image upload and real-time object detection:
+Choose from two powerful web-based interfaces for easy image upload and real-time object detection:
+
+#### **🎯 Streamlit App (Recommended)**
+
+Launch the **Streamlit interface** with advanced analytics and large file support:
+
+```bash
+# Method 1: Interactive launcher (recommended)
+python launch_streamlit.py
+
+# Method 2: Direct launch
+streamlit run simple_streamlit_app.py --server.maxUploadSize=5000
+```
+
+**Streamlit Features:**
+- 📁 **Large File Support**: Upload models up to 5GB (perfect for YOLOv12-DINO models)
+- 📊 **Advanced Analytics**: Interactive charts, detection tables, and data export
+- 🎛️ **Professional UI**: Clean interface with real-time parameter controls
+- 📈 **Data Visualization**: Pie charts, confidence distributions, and statistics
+- 💾 **Export Results**: Download detection data as CSV files
+- 📜 **Detection History**: Track multiple inference sessions
+
+**Access:** http://localhost:8501
+
+![YOLOv12-DINO Streamlit Interface](assets/streamlit_interface.png)
+
+*Professional Streamlit interface showing PPE detection with confidence scores, class distribution, and detailed analytics*
+
+#### **📊 Interface Comparison**
+
+| Feature | Streamlit App | Gradio App | Command Line |
+|:--------|:-------------|:-----------|:-------------|
+| **File Upload Limit** | 5GB ✅ | 200MB ⚠️ | Unlimited ✅ |
+| **Analytics & Charts** | Advanced ✅ | Basic 📊 | Text only 📝 |
+| **Data Export** | CSV/JSON ✅ | Manual 📋 | Files ✅ |
+| **UI Style** | Professional 🎯 | Demo-friendly 🌟 | Terminal 💻 |
+| **Best For** | Production, Analysis | Quick demos | Automation |
+| **Model Support** | All sizes ✅ | Small/Medium ⚠️ | All sizes ✅ |
+
+#### **🌟 Gradio App (Alternative)**
+
+Launch the **Gradio interface** for quick demonstrations:
 
 ```bash
 # Start Gradio web interface
@@ -518,7 +563,7 @@ python app.py
 # Access the interface at: http://localhost:7860
 ```
 
-**Features:**
+**Gradio Features:**
 - 📁 **Model Loading**: Upload any `.pt` weights file through the web interface
 - 🖼️ **Image Upload**: Drag and drop images for instant detection
 - ⚙️ **Real-time Parameters**: Adjust confidence, IoU thresholds, and image size
@@ -669,11 +714,33 @@ model.export(format="engine", half=True)  # or format="onnx"
 ```
 
 
-## 🖥️ Interactive Demo
+## 🖥️ Interactive Demos
 
-### 🚀 **Gradio Web Interface**
+### 🎯 **Streamlit Web App (Production-Ready)**
 
-Launch the interactive web interface for real-time object detection:
+Launch the professional Streamlit interface with advanced analytics:
+
+```bash
+# Interactive launcher with app selection
+python launch_streamlit.py
+
+# Or direct launch
+streamlit run simple_streamlit_app.py --server.maxUploadSize=5000
+
+# Open your browser and visit: http://localhost:8501
+```
+
+**Professional Features:**
+- 📁 **Large Model Support**: Upload YOLOv12-DINO models up to 5GB
+- 📊 **Advanced Analytics**: Interactive pie charts, confidence distributions
+- 📈 **Data Visualization**: Real-time charts and statistical analysis
+- 💾 **Export Capabilities**: Download results as CSV files
+- 📜 **Session History**: Track multiple detection sessions
+- 🎛️ **Professional Controls**: Clean sidebar with parameter sliders
+
+### 🚀 **Gradio Web Interface (Quick Demos)**
+
+Launch the interactive Gradio interface for rapid prototyping:
 
 ```bash
 # Start the Gradio web application
@@ -682,7 +749,7 @@ python app.py
 # Open your browser and visit: http://localhost:7860
 ```
 
-**Web Interface Features:**
+**Demo Features:**
 - 📤 **Easy Upload**: Drag and drop model weights (.pt files) and images
 - 🎛️ **Real-time Controls**: Adjust confidence, IoU thresholds, and image size with sliders
 - 🖼️ **Instant Results**: See detection results with bounding boxes and confidence scores
@@ -690,11 +757,19 @@ python app.py
 - ⚙️ **Device Selection**: Choose between CPU, CUDA, and MPS acceleration
 - 🔄 **Auto-refresh**: Results update automatically when parameters change
 
-**Perfect for:**
-- 🎓 **Demonstrations**: Show model capabilities to stakeholders
-- 🧪 **Testing**: Quick evaluation of different models and parameters
-- 🎨 **Prototyping**: Rapid iteration without command-line complexity
-- 📱 **User-friendly**: No technical knowledge required
+### 🎯 **Use Case Guide**
+
+**Choose Streamlit for:**
+- 🏢 **Production environments** and professional presentations
+- 📊 **Data analysis** and detailed result examination
+- 🧠 **Research** requiring statistical analysis and export
+- 📈 **Large models** (>200MB) and extensive datasets
+
+**Choose Gradio for:**
+- 🎓 **Demonstrations** and stakeholder presentations
+- 🧪 **Quick testing** and rapid prototyping
+- 🎨 **Simple workflows** without complex analytics
+- 📱 **User-friendly** interfaces for non-technical users
 
 ## 🧬 Official DINOv3 Integration
 

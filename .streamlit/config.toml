@@ -1,0 +1,31 @@
+[server]
+# Set large file upload size limit (in MB) - use large number instead of 0
+maxUploadSize = 5000
+
+# Increase message size limit for large files
+maxMessageSize = 5000
+
+# Enable file watcher for better development experience
+fileWatcherType = "auto"
+
+# Allow CORS for wider compatibility
+enableCORS = false
+enableXsrfProtection = false
+
+# Timeout settings for large files
+runOnSave = true
+
+[browser]
+# Automatically open browser
+gatherUsageStats = false
+
+[theme]
+# Professional color scheme
+primaryColor = "#1e88e5"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#262730"
+
+[logger]
+# Set logging level
+level = "info"

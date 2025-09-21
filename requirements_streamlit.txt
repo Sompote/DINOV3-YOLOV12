@@ -1,0 +1,19 @@
+# Streamlit App Requirements for YOLOv12-DINO Object Detection
+
+# Core Streamlit
+streamlit>=1.28.0
+
+# Data visualization and analysis
+plotly>=5.15.0
+pandas>=2.0.0
+
+# Image processing
+Pillow>=9.5.0
+opencv-python>=4.8.0
+
+# Already included in main requirements.txt:
+# torch>=2.0.0
+# torchvision>=0.15.0
+# ultralytics>=8.0.0
+# transformers>=4.30.0
+# numpy>=1.24.0
