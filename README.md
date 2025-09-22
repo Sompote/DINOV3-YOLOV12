@@ -388,7 +388,7 @@ python train_yolov12_dino.py \
     --epochs 1 \
     --name quick_test
 
-# 6. Test Streamlit interface (optional)
+# 6. Test Streamlit web interface (optional)
 python launch_streamlit.py
 ```
 
@@ -511,13 +511,9 @@ results = model.train(
 
 ## 🔍 Inference & Prediction
 
-### 🖥️ **Interactive Web Interfaces**
+### 🖥️ **Interactive Streamlit Web Interface**
 
-Choose from two powerful web-based interfaces for easy image upload and real-time object detection:
-
-#### **🎯 Streamlit App (Recommended)**
-
-Launch the **Streamlit interface** with advanced analytics and large file support:
+Launch the **professional Streamlit interface** with advanced analytics and large file support:
 
 ```bash
 # Method 1: Interactive launcher (recommended)
@@ -543,32 +539,16 @@ streamlit run simple_streamlit_app.py --server.maxUploadSize=5000
 
 #### **📊 Interface Comparison**
 
-| Feature | Streamlit App | Gradio App | Command Line |
-|:--------|:-------------|:-----------|:-------------|
-| **File Upload Limit** | 5GB ✅ | 200MB ⚠️ | Unlimited ✅ |
-| **Analytics & Charts** | Advanced ✅ | Basic 📊 | Text only 📝 |
-| **Data Export** | CSV/JSON ✅ | Manual 📋 | Files ✅ |
-| **UI Style** | Professional 🎯 | Demo-friendly 🌟 | Terminal 💻 |
-| **Best For** | Production, Analysis | Quick demos | Automation |
-| **Model Support** | All sizes ✅ | Small/Medium ⚠️ | All sizes ✅ |
-
-#### **🌟 Gradio App (Alternative)**
-
-Launch the **Gradio interface** for quick demonstrations:
-
-```bash
-# Start Gradio web interface
-python app.py
-
-# Access the interface at: http://localhost:7860
-```
-
-**Gradio Features:**
-- 📁 **Model Loading**: Upload any `.pt` weights file through the web interface
-- 🖼️ **Image Upload**: Drag and drop images for instant detection
-- ⚙️ **Real-time Parameters**: Adjust confidence, IoU thresholds, and image size
-- 📊 **Detailed Results**: View detection boxes with confidence scores and class names
-- 🎯 **Device Selection**: Choose between CPU, CUDA, or MPS
+| Feature | Streamlit App | Command Line |
+|:--------|:-------------|:-------------|
+| **File Upload Limit** | 5GB ✅ | Unlimited ✅ |
+| **Analytics & Charts** | Advanced ✅ | Text only 📝 |
+| **Data Export** | CSV/JSON ✅ | Files ✅ |
+| **UI Style** | Professional 🎯 | Terminal 💻 |
+| **Best For** | Production, Analysis | Automation, Batch |
+| **Model Support** | All sizes ✅ | All sizes ✅ |
+| **Visualization** | Interactive charts 📈 | Text summaries 📄 |
+| **Deployment** | Web-based 🌐 | Script-based 🖥️ |
 
 ### 📝 **Command Line Inference**
 
@@ -714,7 +694,7 @@ model.export(format="engine", half=True)  # or format="onnx"
 ```
 
 
-## 🖥️ Interactive Demos
+## 🖥️ Interactive Demo
 
 ### 🎯 **Streamlit Web App (Production-Ready)**
 
@@ -737,39 +717,26 @@ streamlit run simple_streamlit_app.py --server.maxUploadSize=5000
 - 💾 **Export Capabilities**: Download results as CSV files
 - 📜 **Session History**: Track multiple detection sessions
 - 🎛️ **Professional Controls**: Clean sidebar with parameter sliders
-
-### 🚀 **Gradio Web Interface (Quick Demos)**
-
-Launch the interactive Gradio interface for rapid prototyping:
-
-```bash
-# Start the Gradio web application
-python app.py
-
-# Open your browser and visit: http://localhost:7860
-```
-
-**Demo Features:**
-- 📤 **Easy Upload**: Drag and drop model weights (.pt files) and images
-- 🎛️ **Real-time Controls**: Adjust confidence, IoU thresholds, and image size with sliders
 - 🖼️ **Instant Results**: See detection results with bounding boxes and confidence scores
-- 📊 **Detailed Output**: View complete detection statistics and object counts
 - ⚙️ **Device Selection**: Choose between CPU, CUDA, and MPS acceleration
-- 🔄 **Auto-refresh**: Results update automatically when parameters change
 
 ### 🎯 **Use Case Guide**
 
-**Choose Streamlit for:**
+**Choose Streamlit Interface for:**
 - 🏢 **Production environments** and professional presentations
 - 📊 **Data analysis** and detailed result examination
 - 🧠 **Research** requiring statistical analysis and export
-- 📈 **Large models** (>200MB) and extensive datasets
+- 📈 **Large models** and extensive datasets
+- 🎯 **Interactive exploration** of detection results
+- 💼 **Stakeholder demonstrations** with professional appearance
 
-**Choose Gradio for:**
-- 🎓 **Demonstrations** and stakeholder presentations
-- 🧪 **Quick testing** and rapid prototyping
-- 🎨 **Simple workflows** without complex analytics
-- 📱 **User-friendly** interfaces for non-technical users
+**Choose Command Line for:**
+- 🔄 **Automation** and batch processing workflows
+- 🚀 **High-performance** inference on multiple images
+- 📜 **Scripting** and integration with other tools
+- 🖥️ **Server deployments** and headless environments
+- 📊 **Precise control** over inference parameters
+- 🔧 **Development** and debugging workflows
 
 ## 🧬 Official DINOv3 Integration
 
