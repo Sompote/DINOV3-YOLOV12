@@ -63,6 +63,7 @@ YOLOv12 surpasses all popular real-time object detectors in accuracy with compet
 - **🧠 Vision Transformer backbone** (Meta's official DINOv3) 
 - **🔄 Multi-scale integration** (P3+P4 level enhancement)
 - **⚡ Optimized for production** (real-time performance)
+- **🦺 Pre-trained Construction-PPE model** (mAP@50: 51.9%)
 
 </td>
 </tr>
@@ -390,6 +391,10 @@ python train_yolov12_dino.py \
 
 # 6. Test Streamlit web interface (optional)
 python launch_streamlit.py
+
+# 7. Try pre-trained Construction-PPE model (optional)
+wget https://1drv.ms/u/c/8a791e13b6e7ac91/ETzuMC0lHxBIv1eeOkOsq1cBZC5Cj7dAZ1W_c5yX_QcyYw?e=IW5N8r -O construction_ppe_best.pt
+python inference.py --weights construction_ppe_best.pt --source your_image.jpg --save
 ```
 
 ### ⚡ **One-Command Quick Start**
@@ -442,6 +447,47 @@ pip install --pre torch torchvision --index-url https://download.pytorch.org/whl
 # Verify RTX 5090 compatibility
 python -c "import torch; print(f'✅ GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"No CUDA\"}')"
 ```
+
+## 🏗️ Pre-trained Construction-PPE Model
+
+### 🦺 **Construction Personal Protective Equipment Detection**
+
+We provide a specialized YOLOv12-DINO model trained on the **Construction-PPE dataset** from Ultralytics 8.3.197, optimized for detecting safety equipment on construction sites.
+
+**📊 Model Performance:**
+- **mAP@50**: 0.519 (51.9%)
+- **Dataset**: [New Construction-PPE dataset](https://github.com/ultralytics/ultralytics/releases/tag/v8.3.197)
+- **Classes**: helmet, gloves, vest, boots, goggles, person, no_helmet, no_goggles, no_gloves, no_boots, none
+
+**🔗 Download Trained Weights:**
+```bash
+# Download pre-trained Construction-PPE model (mAP@50: 51.9%)
+wget https://1drv.ms/u/c/8a791e13b6e7ac91/ETzuMC0lHxBIv1eeOkOsq1cBZC5Cj7dAZ1W_c5yX_QcyYw?e=IW5N8r -O construction_ppe_best.pt
+
+# Or use direct link
+curl -L "https://1drv.ms/u/c/8a791e13b6e7ac91/ETzuMC0lHxBIv1eeOkOsq1cBZC5Cj7dAZ1W_c5yX_QcyYw?e=IW5N8r" -o construction_ppe_best.pt
+```
+
+**🚀 Quick Start with Pre-trained Model:**
+```bash
+# Command-line inference
+python inference.py \
+    --weights construction_ppe_best.pt \
+    --source your_construction_images/ \
+    --conf 0.25 \
+    --save
+
+# Streamlit web interface
+python launch_streamlit.py
+# Upload construction_ppe_best.pt in the interface
+```
+
+**🎯 Perfect for:**
+- 🏗️ **Construction site safety monitoring**
+- 🦺 **PPE compliance checking**
+- 📊 **Safety audit documentation**
+- 🚨 **Real-time safety alerts**
+- 📈 **Safety statistics and reporting**
 
 ## Validation
 [`yolov12n`](https://github.com/sunsmarterjie/yolov12/releases/download/turbo/yolov12n.pt)
