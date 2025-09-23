@@ -49,8 +49,8 @@ def create_model_config_path(yolo_size, dino_version=None, dino_variant=None, in
         str: Path to model configuration file
     """
     if dino_version is None:
-        # Base YOLOv12 model
-        return f'yolov12{yolo_size}.yaml'
+        # Base YOLOv12 model - use generic config that scales based on size
+        return 'ultralytics/cfg/models/v12/yolov12.yaml'
     
     # Handle DINO preprocessing approach (--dino-input without --dino-variant)
     # This uses DINO BEFORE P0, keeping original YOLOv12 architecture
