@@ -217,13 +217,73 @@ yolov12{size}-dino{version}-{variant}-{integration}.yaml
 
 </details>
 
-### 🎛️ **Available DINO Variants**
+### 🎛️ **Available DINOv3 Variants - Complete Summary**
 
-**DINOv3 Standard:**
-- `vits16` • `vitb16` • `vitl16` • `vith16_plus` • `vit7b16`
+#### **🚀 Vision Transformer (ViT) Models**
 
-**DINOv3 ConvNeXt:**
-- `convnext_tiny` • `convnext_small` • `convnext_base` • `convnext_large`
+| Variant | Parameters | Embed Dim | Memory | Speed | Use Case | Recommended For |
+|:--------|:-----------|:----------|:-------|:------|:---------|:----------------|
+| `dinov3_vits16` | 21M | 384 | ~4GB | ⚡ Fastest | Development, mobile | Prototyping, edge devices |
+| `dinov3_vitb16` | 86M | 768 | ~8GB | 🎯 Balanced | **Recommended** | General purpose, production |
+| `dinov3_vitl16` | 300M | 1024 | ~14GB | 🏋️ Slower | High accuracy | Research, complex scenes |
+| `dinov3_vith16_plus` | 840M | 1280 | ~32GB | 🐌 Slowest | Maximum performance | Enterprise, specialized |
+| `dinov3_vit7b16` | 6.7B | 4096 | >100GB | ⚠️ Experimental | Ultra-high-end | Research only |
+
+#### **🧠 ConvNeXt Models (CNN-ViT Hybrid)**
+
+| Variant | Parameters | Embed Dim | Memory | Speed | Use Case | Recommended For |
+|:--------|:-----------|:----------|:-------|:------|:---------|:----------------|
+| `dinov3_convnext_tiny` | 29M | 768 | ~4GB | ⚡ Fast | Lightweight hybrid | Efficient deployments |
+| `dinov3_convnext_small` | 50M | 768 | ~6GB | 🎯 Balanced | **Hybrid choice** | CNN+ViT benefits |
+| `dinov3_convnext_base` | 89M | 1024 | ~8GB | 🏋️ Medium | Robust hybrid | Production hybrid |
+| `dinov3_convnext_large` | 198M | 1536 | ~16GB | 🐌 Slower | Maximum hybrid | Research hybrid |
+
+#### **📊 Quick Selection Guide**
+
+**For Beginners:** 
+- Start with `dinov3_vitb16` (most balanced)
+- Use `dinov3_vits16` for faster development
+
+**For Production:**
+- `dinov3_vitb16` for general use (recommended)
+- `dinov3_convnext_base` for CNN-ViT hybrid approach
+
+**For Research:**
+- `dinov3_vitl16` for maximum accuracy
+- `dinov3_vith16_plus` for cutting-edge performance
+
+**Memory Constraints:**
+- <8GB VRAM: `dinov3_vits16`, `dinov3_convnext_tiny`
+- 8-16GB VRAM: `dinov3_vitb16`, `dinov3_convnext_base`  
+- >16GB VRAM: `dinov3_vitl16`, `dinov3_vith16_plus`
+
+#### **🎯 Command Examples**
+
+```bash
+# Lightweight development (4GB VRAM)
+--dinoversion 3 --dino-variant vits16
+
+# Recommended production (8GB VRAM) 
+--dinoversion 3 --dino-variant vitb16
+
+# High accuracy research (14GB+ VRAM)
+--dinoversion 3 --dino-variant vitl16
+
+# Hybrid CNN-ViT approach (8GB VRAM)
+--dinoversion 3 --dino-variant convnext_base
+```
+
+### 📋 **DINOv3 Quick Reference**
+
+**🔥 Most Popular Choices:**
+```bash
+dinov3_vitb16        # ⭐ RECOMMENDED: Best balance (86M params, 8GB VRAM)
+dinov3_vits16        # ⚡ FASTEST: Development & prototyping (21M params, 4GB VRAM)  
+dinov3_vitl16        # 🎯 HIGHEST ACCURACY: Research use (300M params, 14GB VRAM)
+dinov3_convnext_base # 🧠 HYBRID: CNN+ViT fusion (89M params, 8GB VRAM)
+```
+
+**💡 Pro Tip:** Start with `dinov3_vitb16` for best results, then scale up/down based on your needs!
 
 ### 🧬 **NEW: `--dinoversion` Argument - DINOv3 is Default**
 
