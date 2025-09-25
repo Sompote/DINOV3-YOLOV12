@@ -34,13 +34,13 @@ import yaml
 import tempfile
 import os
 
-def create_model_config_path(yolo_size, dino_version=None, dino_variant=None, integration=None, dino_input=None):
+def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, integration=None, dino_input=None):
     """
     Create model configuration path based on systematic naming convention.
     
     Args:
         yolo_size (str): YOLOv12 size (n, s, m, l, x)
-        dino_version (str): DINO version (3 for DINOv3)  
+        dinoversion (str): DINO version (2 for DINOv2, 3 for DINOv3)  
         dino_variant (str): DINO variant (vitb16, convnext_base, etc.)
         integration (str): Integration type (single, dual)
         dino_input (str): Custom DINO input path/identifier
@@ -48,7 +48,7 @@ def create_model_config_path(yolo_size, dino_version=None, dino_variant=None, in
     Returns:
         str: Path to model configuration file
     """
-    if dino_version is None:
+    if dinoversion is None:
         # Base YOLOv12 model - use generic config that scales based on size
         return 'ultralytics/cfg/models/v12/yolov12.yaml'
     
@@ -77,9 +77,9 @@ def create_model_config_path(yolo_size, dino_version=None, dino_variant=None, in
     
     # DINOv3 enhanced model - systematic naming
     if integration == 'dual':
-        config_name = f'yolov12{yolo_size}-dino{dino_version}-{dino_variant}-dual.yaml'
+        config_name = f'yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-dual.yaml'
     else:
-        config_name = f'yolov12{yolo_size}-dino{dino_version}-{dino_variant}-single.yaml'
+        config_name = f'yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-single.yaml'
     
     # Check if systematic config exists, otherwise use simplified naming
     config_path = Path('ultralytics/cfg/models/v12') / config_name
@@ -128,8 +128,8 @@ def parse_arguments():
                        help='YOLOv12 model size (n/s/m/l/x)')
     
     # DINOv3 enhancement arguments
-    parser.add_argument('--dino-version', type=str, choices=['3'], default=None,
-                       help='DINO version (3 for DINOv3). Omit for base YOLOv12')
+    parser.add_argument('--dinoversion', type=str, choices=['2', '3'], default='3',
+                       help='DINO version (2 for DINOv2, 3 for DINOv3). Default: 3')
     parser.add_argument('--dino-variant', type=str, default=None,
                        choices=['vits16', 'vitb16', 'vitl16', 'vith16_plus', 'vit7b16',
                                'convnext_tiny', 'convnext_small', 'convnext_base', 'convnext_large'],
@@ -191,8 +191,8 @@ def validate_arguments(args):
         raise FileNotFoundError(f"Dataset file not found: {args.data}")
     
     # Validate DINOv3 arguments  
-    if args.dino_version and not args.dino_variant and not args.dino_input:
-        raise ValueError("--dino-variant or --dino-input is required when --dino-version is specified")
+    if args.dinoversion and not args.dino_variant and not args.dino_input:
+        raise ValueError("--dino-variant or --dino-input is required when --dinoversion is specified")
     
     # Handle dino_input logic - DON'T automatically set dino_variant
     if args.dino_input:
@@ -212,15 +212,15 @@ def create_experiment_name(args):
     if args.name:
         return args.name
     
-    if args.dino_version:
+    if args.dinoversion:
         # Handle different DINO approaches
         if args.dino_input and not args.dino_variant:
             # Preprocessing approach
-            name = f"yolov12{args.yolo_size}-dino{args.dino_version}-preprocess"
+            name = f"yolov12{args.yolo_size}-dino{args.dinoversion}-preprocess"
         else:
             # Integrated approach
             variant = args.dino_variant or 'default'
-            name = f"yolov12{args.yolo_size}-dino{args.dino_version}-{variant}-{args.integration}"
+            name = f"yolov12{args.yolo_size}-dino{args.dinoversion}-{variant}-{args.integration}"
     else:
         # Base YOLOv12 naming
         name = f"yolov12{args.yolo_size}"
@@ -229,7 +229,7 @@ def create_experiment_name(args):
 
 def setup_training_parameters(args):
     """Setup training parameters based on model configuration."""
-    has_dino = args.dino_version is not None
+    has_dino = args.dinoversion is not None
     
     # Auto-determine batch size if not specified
     if args.batch_size is None:
@@ -258,7 +258,7 @@ def setup_training_parameters(args):
     
     return args
 
-def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', unfreeze_dino=False):
+def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', unfreeze_dino=False, dino_version='3'):
     """
     Modify YAML config to replace DINO_MODEL_NAME or CUSTOM_DINO_INPUT placeholder with actual DINO input
     and scale DINO output channels based on YOLO model size.
@@ -268,6 +268,7 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
         dino_input (str): Actual DINO input to replace the placeholder
         yolo_size (str): YOLO model size (n, s, m, l, x)
         unfreeze_dino (bool): Whether to make DINO weights trainable during training
+        dino_version (str): DINO version ('2' for DINOv2, '3' for DINOv3)
     
     Returns:
         str: Path to the modified YAML config file
@@ -313,20 +314,34 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
         
         dino_channels = scale_to_dino_channels.get(yolo_size, 256)
         
-        # Replace CUSTOM_DINO_INPUT placeholder in backbone
+        # Replace CUSTOM_DINO_INPUT and DINO_VERSION placeholders in backbone
         if 'backbone' in config:
             for i, layer in enumerate(config['backbone']):
                 if len(layer) >= 4 and isinstance(layer[3], list) and len(layer[3]) > 0:
+                    # Handle CUSTOM_DINO_INPUT replacement
                     if layer[3][0] == 'CUSTOM_DINO_INPUT':
                         config['backbone'][i][3][0] = dino_input
                         # Set freeze_backbone parameter (inverted logic: unfreeze_dino=True means freeze_backbone=False)
                         if len(layer[3]) > 1:
                             config['backbone'][i][3][1] = not unfreeze_dino
                         # Set DINO output channels to match the actual scale
-                        config['backbone'][i][3][2] = dino_channels
+                        if len(layer[3]) > 2:
+                            config['backbone'][i][3][2] = dino_channels
+                        # Add dino_version parameter as 4th parameter
+                        if len(layer[3]) > 3:
+                            if layer[3][3] == 'DINO_VERSION':
+                                config['backbone'][i][3][3] = dino_version
+                        else:
+                            config['backbone'][i][3].append(dino_version)
                         print(f"   ✅ Replaced CUSTOM_DINO_INPUT with {dino_input}")
                         print(f"   🔧 DINO weights {'trainable' if unfreeze_dino else 'frozen'}: freeze_backbone={not unfreeze_dino}")
                         print(f"   🔧 Set DINO output channels: {dino_channels} (matching YOLOv12{yolo_size} P4 level)")
+                        print(f"   🔧 Set DINO version: {dino_version}")
+                    # Handle DINO_VERSION replacement in any position
+                    for j, arg in enumerate(layer[3]):
+                        if arg == 'DINO_VERSION':
+                            config['backbone'][i][3][j] = dino_version
+                            print(f"   🔧 Replaced DINO_VERSION with {dino_version} at layer {i}, arg {j}")
     
     # FORCE the scale parameter in the config
     config['scale'] = yolo_size
@@ -351,7 +366,7 @@ def main():
     
     # Create model configuration path
     model_config = create_model_config_path(
-        args.yolo_size, args.dino_version, args.dino_variant, args.integration, args.dino_input
+        args.yolo_size, args.dinoversion, args.dino_variant, args.integration, args.dino_input
     )
     
     # Create experiment name
@@ -360,8 +375,8 @@ def main():
     # Print configuration summary
     print(f"📊 Training Configuration:")
     print(f"   Model: YOLOv12{args.yolo_size}")
-    if args.dino_version:
-        print(f"   DINO: DINOv{args.dino_version} + {args.dino_variant}")
+    if args.dinoversion:
+        print(f"   DINO: DINOv{args.dinoversion} + {args.dino_variant}")
         print(f"   Integration: {args.integration}")
         print(f"   DINO Weights: {'Trainable' if args.unfreeze_dino else 'Frozen'}")
     else:
@@ -380,7 +395,7 @@ def main():
         temp_config_path = None
         if args.dino_input:
             print(f"Using custom DINO input: {args.dino_input}")
-            temp_config_path = modify_yaml_config_for_custom_dino(model_config, args.dino_input, args.yolo_size, args.unfreeze_dino)
+            temp_config_path = modify_yaml_config_for_custom_dino(model_config, args.dino_input, args.yolo_size, args.unfreeze_dino, args.dinoversion)
             if temp_config_path != model_config:
                 model_config = temp_config_path
         

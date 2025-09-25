@@ -13,7 +13,7 @@
 
 ### 🆕 **NEW: DINOv3 Integration with YOLOv12** - Powerful Vision Transformer enhancement for state-of-the-art object detection
 
-**4 YOLOv12 configurations** • **12+ DINOv3 variants** • **P4-level enhancement** • **Production-ready integration**
+**4 YOLOv12 configurations** • **12+ DINOv3 variants** • **`--dinoversion 3` default** • **P4-level enhancement** • **Production-ready integration**
 
 [📖 **Quick Start**](#-quick-start) • [🎯 **Model Zoo**](#-model-zoo) • [🛠️ **Installation**](#️-installation) • [📊 **Performance**](#-expected-performance) • [🤝 **Contributing**](#-contributing)
 
