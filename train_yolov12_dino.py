@@ -6,11 +6,14 @@ This script provides a systematic approach to training YOLOv12 models with DINOv
 following the same command structure as YOLOv13 + DINO implementation.
 
 Usage Examples:
-    # Recommended configuration
-    python train_yolov12_dino.py --data coco.yaml --yolo-size s --dino-version 3 --dino-variant vitb16 --integration single --epochs 100
+    # Single integration (P0 input preprocessing) - Most stable
+    python train_yolov12_dino.py --data coco.yaml --yolo-size s --dinoversion 3 --dino-variant vitb16 --integration single --epochs 100
 
-    # High-performance dual-scale
-    python train_yolov12_dino.py --data coco.yaml --yolo-size l --dino-version 3 --dino-variant vitl16 --integration dual --epochs 200
+    # Dual integration (P3+P4 backbone) - High performance  
+    python train_yolov12_dino.py --data coco.yaml --yolo-size l --dinoversion 3 --dino-variant vitl16 --integration dual --epochs 200
+
+    # Triple integration (P0+P3+P4 all levels) - Maximum enhancement
+    python train_yolov12_dino.py --data coco.yaml --yolo-size l --dinoversion 3 --dino-variant vitl16 --integration triple --epochs 200
 
     # Base YOLOv12 (no DINO)
     python train_yolov12_dino.py --data coco.yaml --yolo-size s --epochs 100
@@ -52,12 +55,16 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
         # Base YOLOv12 model - use generic config that scales based on size
         return 'ultralytics/cfg/models/v12/yolov12.yaml'
     
-    # Handle DINO preprocessing approach (--dino-input without --dino-variant)
-    # This uses DINO BEFORE P0, keeping original YOLOv12 architecture
-    if dino_input and not dino_variant:
-        print("🏗️  Using DINO3 Preprocessing Architecture")
+    # NEW INTEGRATION LOGIC:
+    # single = P0 input preprocessing only
+    # dual = P3+P4 backbone integration  
+    # triple = P0+P3+P4 all levels
+    
+    if integration == 'single':
+        # Single = P0 input preprocessing only
+        print("🏗️  Using DINO3 Single Integration (P0 Input)")
         print("   📐 Input -> DINO3Preprocessor -> Original YOLOv12")
-        print("   ✅ Maintains original YOLOv12 backbone and head")
+        print("   ✅ Clean architecture, most stable training")
         
         # Try size-specific config first, fallback to generic
         size_specific_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-preprocess.yaml'
@@ -68,17 +75,22 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
             print(f"   📄 Using generic config: yolov12-dino3-preprocess.yaml")
             return 'ultralytics/cfg/models/v12/yolov12-dino3-preprocess.yaml'
     
-    # Handle custom DINO input with variant (integrated approach)
-    # Only use custom config if no specific variant is provided
-    if dino_input and not dino_variant:
-        print("🔧 Using DINO3 Integrated Architecture")
-        print("   📐 DINO integrated inside YOLOv12 backbone")
-        return 'ultralytics/cfg/models/v12/yolov12-dino3-custom.yaml'
-    
-    # DINOv3 enhanced model - systematic naming
-    if integration == 'dual':
+    elif integration == 'dual':
+        # Dual = P3+P4 backbone integration
+        print("🎪 Using DINO3 Dual Integration (P3+P4 Backbone)")
+        print("   📐 YOLOv12 -> DINO3(P3) -> DINO3(P4) -> Head")
+        print("   🎯 High performance, multi-scale enhancement")
         config_name = f'yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-dual.yaml'
+        
+    elif integration == 'triple':
+        # Triple = P0+P3+P4 all levels
+        print("🚀 Using DINO3 Triple Integration (P0+P3+P4 All Levels)")
+        print("   📐 DINO3Preprocessor -> YOLOv12 -> DINO3(P3) -> DINO3(P4)")
+        print("   🏆 Maximum enhancement, ultimate performance")
+        config_name = f'yolov12{yolo_size}-triple-dino{dinoversion}-{dino_variant}.yaml'
+        
     else:
+        # Fallback for any other case
         config_name = f'yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-single.yaml'
     
     # Check if systematic config exists, otherwise use simplified naming
@@ -102,10 +114,17 @@ def get_recommended_batch_size(yolo_size, has_dino=False, integration='single'):
     batch = base_batches.get(yolo_size, 16)
     
     if has_dino:
-        # Reduce batch size for DINO models
-        batch = max(batch // 2, 4)
-        if integration == 'dual':
-            batch = max(batch // 2, 2)
+        if integration == 'single':
+            # Single = P0 preprocessing only, lighter computational load
+            batch = max(batch // 2, 4)
+        elif integration == 'dual':  
+            # Dual = P3+P4 backbone integration, moderate computational load
+            batch = max(batch // 3, 3)
+        elif integration == 'triple':
+            # Triple = P0+P3+P4 all levels, highest computational load
+            batch = max(batch // 4, 1)
+        else:
+            batch = max(batch // 2, 4)
     
     return batch
 
@@ -135,8 +154,8 @@ def parse_arguments():
                                'convnext_tiny', 'convnext_small', 'convnext_base', 'convnext_large'],
                        help='DINOv3 model variant')
     parser.add_argument('--integration', type=str, default='single',
-                       choices=['single', 'dual'],
-                       help='Integration type: single (P4 only) or dual (P3+P4)')
+                       choices=['single', 'dual', 'triple'],
+                       help='Integration type: single (P0 input), dual (P3+P4 backbone), triple (P0+P3+P4 all levels)')
     parser.add_argument('--dino-input', type=str, default=None,
                        help='Custom DINO model input/path (overrides --dino-variant)')
     
@@ -213,13 +232,19 @@ def create_experiment_name(args):
         return args.name
     
     if args.dinoversion:
-        # Handle different DINO approaches
-        if args.dino_input and not args.dino_variant:
-            # Preprocessing approach
-            name = f"yolov12{args.yolo_size}-dino{args.dinoversion}-preprocess"
+        # New integration naming based on actual architecture
+        variant = args.dino_variant or 'default'
+        if args.integration == 'single':
+            # Single = P0 preprocessing
+            name = f"yolov12{args.yolo_size}-dino{args.dinoversion}-{variant}-p0"
+        elif args.integration == 'dual':
+            # Dual = P3+P4 backbone
+            name = f"yolov12{args.yolo_size}-dino{args.dinoversion}-{variant}-p3p4"
+        elif args.integration == 'triple':
+            # Triple = P0+P3+P4 all levels
+            name = f"yolov12{args.yolo_size}-dino{args.dinoversion}-{variant}-p0p3p4"
         else:
-            # Integrated approach
-            variant = args.dino_variant or 'default'
+            # Fallback
             name = f"yolov12{args.yolo_size}-dino{args.dinoversion}-{variant}-{args.integration}"
     else:
         # Base YOLOv12 naming
