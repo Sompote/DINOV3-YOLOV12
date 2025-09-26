@@ -6,17 +6,17 @@ This script provides a systematic approach to training YOLOv12 models with DINOv
 following the same command structure as YOLOv13 + DINO implementation.
 
 Usage Examples:
+    # Base YOLOv12 (no DINO enhancement) - Pure YOLOv12
+    python train_yolov12_dino.py --data coco.yaml --yolo-size s --epochs 100
+
     # Single integration (P0 input preprocessing) - Most stable
-    python train_yolov12_dino.py --data coco.yaml --yolo-size s --dinoversion 3 --dino-variant vitb16 --integration single --epochs 100
+    python train_yolov12_dino.py --data coco.yaml --yolo-size s --dino-variant vitb16 --integration single --epochs 100
 
     # Dual integration (P3+P4 backbone) - High performance  
-    python train_yolov12_dino.py --data coco.yaml --yolo-size l --dinoversion 3 --dino-variant vitl16 --integration dual --epochs 200
+    python train_yolov12_dino.py --data coco.yaml --yolo-size l --dino-variant vitl16 --integration dual --epochs 200
 
     # Triple integration (P0+P3+P4 all levels) - Maximum enhancement
-    python train_yolov12_dino.py --data coco.yaml --yolo-size l --dinoversion 3 --dino-variant vitl16 --integration triple --epochs 200
-
-    # Base YOLOv12 (no DINO)
-    python train_yolov12_dino.py --data coco.yaml --yolo-size s --epochs 100
+    python train_yolov12_dino.py --data coco.yaml --yolo-size l --dino-variant vitl16 --integration triple --epochs 200
 """
 
 import argparse
@@ -90,7 +90,9 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
         config_name = f'yolov12{yolo_size}-triple-dino{dinoversion}-{dino_variant}.yaml'
         
     else:
-        # Fallback for any other case
+        # This should not happen with proper validation, but provide fallback
+        print("⚠️  No integration type specified with DINO. This should be caught by validation.")
+        print("   📄 Using single integration as fallback")
         config_name = f'yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-single.yaml'
     
     # Check if systematic config exists, otherwise use simplified naming
@@ -147,15 +149,15 @@ def parse_arguments():
                        help='YOLOv12 model size (n/s/m/l/x)')
     
     # DINOv3 enhancement arguments
-    parser.add_argument('--dinoversion', type=str, choices=['2', '3'], default='3',
-                       help='DINO version (2 for DINOv2, 3 for DINOv3). Default: 3')
+    parser.add_argument('--dinoversion', type=str, choices=['2', '3'], default=None,
+                       help='DINO version (2 for DINOv2, 3 for DINOv3). If not specified, uses pure YOLOv12')
     parser.add_argument('--dino-variant', type=str, default=None,
                        choices=['vits16', 'vitb16', 'vitl16', 'vith16_plus', 'vit7b16',
                                'convnext_tiny', 'convnext_small', 'convnext_base', 'convnext_large'],
                        help='DINOv3 model variant')
-    parser.add_argument('--integration', type=str, default='single',
+    parser.add_argument('--integration', type=str, default=None,
                        choices=['single', 'dual', 'triple'],
-                       help='Integration type: single (P0 input), dual (P3+P4 backbone), triple (P0+P3+P4 all levels)')
+                       help='Integration type: single (P0 input), dual (P3+P4 backbone), triple (P0+P3+P4 all levels). Required when using DINO')
     parser.add_argument('--dino-input', type=str, default=None,
                        help='Custom DINO model input/path (overrides --dino-variant)')
     
@@ -209,15 +211,39 @@ def validate_arguments(args):
     if not os.path.exists(args.data):
         raise FileNotFoundError(f"Dataset file not found: {args.data}")
     
-    # Validate DINOv3 arguments  
-    if args.dinoversion and not args.dino_variant and not args.dino_input:
-        raise ValueError("--dino-variant or --dino-input is required when --dinoversion is specified")
+    # Determine if DINO is being used
+    dino_requested = bool(args.dinoversion or args.dino_variant or args.dino_input)
     
-    # Handle dino_input logic - DON'T automatically set dino_variant
+    if dino_requested:
+        # User wants DINO enhancement - validate requirements
+        
+        # Set default dinoversion if DINO is requested but version not specified
+        if not args.dinoversion:
+            args.dinoversion = '3'
+            LOGGER.info("DINO requested but no version specified. Defaulting to DINOv3 (--dinoversion 3)")
+        
+        # Require integration type when using DINO
+        if not args.integration:
+            raise ValueError("--integration is REQUIRED when using DINO enhancement. Choose: single, dual, or triple")
+        
+        # Require either dino-variant or dino-input
+        if not args.dino_variant and not args.dino_input:
+            raise ValueError("--dino-variant or --dino-input is required when using DINO enhancement")
+            
+        LOGGER.info(f"✅ DINO Enhancement Mode: DINOv{args.dinoversion} + {args.integration} integration")
+        
+    else:
+        # No DINO requested - use pure YOLOv12
+        if args.integration:
+            LOGGER.warning(f"⚠️  --integration specified but no DINO arguments provided. Ignoring --integration and using pure YOLOv12")
+            args.integration = None
+        
+        args.dinoversion = None
+        LOGGER.info("🚀 Pure YOLOv12 Mode: No DINO enhancement")
+    
+    # Handle dino_input logic
     if args.dino_input:
         LOGGER.info(f"Using custom DINO input: {args.dino_input}")
-        # Only set to 'custom' if dino_variant is explicitly provided
-        # If dino_variant is None, we use preprocessing approach
     
     # Check GPU availability
     if not torch.cuda.is_available() and args.device != 'cpu':
