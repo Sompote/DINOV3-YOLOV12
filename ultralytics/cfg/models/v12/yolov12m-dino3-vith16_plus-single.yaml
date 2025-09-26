@@ -1,0 +1,49 @@
+# YOLOv12m with DINOv3 ViT-H/16+ Single-Scale Integration
+# Systematic naming: yolov12m-dino3-vith16_plus-single
+# Ultra-high performance medium configuration
+
+nc: 80  # number of classes
+scales: # model compound scaling constants
+  # [depth, width, max_channels]
+  n: [0.50, 0.25, 1024]   # Nano
+  s: [0.50, 0.50, 1024]   # Small
+  m: [0.67, 0.75, 768]    # Medium
+  l: [1.00, 1.00, 512]    # Large
+  x: [1.00, 1.25, 512]    # Extra Large
+
+backbone:
+  # [from, repeats, module, args]
+  # YOLOv12m backbone with DINOv3 ViT-H/16+ integration at P4
+  - [-1, 1, Conv, [64, 3, 2]]  # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 1-P2/4
+  - [-1, 2, C3k2, [256, False, 0.25]]
+  - [-1, 1, Conv, [256, 3, 2]] # 3-P3/8
+  - [-1, 4, C3k2, [512, False, 0.25]]
+  - [-1, 1, Conv, [512, 3, 2]] # 5-P4/16
+  - [-1, 4, C3k2, [768, True]]
+  
+  # DINOv3 ViT-H/16+ enhancement at P4 level (1280 embed_dim -> 768 channels for medium)
+  - [-1, 1, DINO3Backbone, ['dinov3_vith16_plus', True, 768, '3']]  # 7: DINOv3 Huge enhanced P4
+  
+  - [-1, 1, Conv, [768, 3, 2]] # 8-P5/32
+  - [-1, 2, C3k2, [768, True]]
+
+# YOLOv12 head with DINOv3-enhanced features
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 10
+  - [[-1, 7], 1, Concat, [1]] # cat backbone P4 (DINOv3-enhanced)
+  - [-1, 2, C2fPSA, [768, 0.5]] # 12
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 13
+  - [[-1, 4], 1, Concat, [1]] # cat backbone P3
+  - [-1, 2, C2fPSA, [384, 0.5]] # 15 (P3/8-small)
+
+  - [-1, 1, Conv, [384, 3, 2]] # 16
+  - [[-1, 12], 1, Concat, [1]] # cat head P4
+  - [-1, 2, C2fPSA, [768, 0.5]] # 18 (P4/16-medium)
+
+  - [-1, 1, Conv, [768, 3, 2]] # 19
+  - [[-1, 9], 1, Concat, [1]] # cat head P5
+  - [-1, 2, C2fPSA, [768, 0.5]] # 21 (P5/32-large)
+
+  - [[15, 18, 21], 1, Detect, [nc]] # Detect(P3, P4, P5)
