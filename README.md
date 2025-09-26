@@ -938,20 +938,36 @@ python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb1
 
 ### 🎯 **Quick Test**
 ```bash
+# Test pure YOLOv12 (no DINO)
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size s \
+    --epochs 5 \
+    --name test_pure_yolov12
+
 # Test official DINOv3 integration  
 python validate_dinov3.py --test-all
 
 # Test custom input support
 python test_custom_dino_input.py
 
-# Example training with official DINOv3 (default version=3)
+# Example training with official DINOv3 single integration
 python train_yolov12_dino.py \
     --data coco.yaml \
     --yolo-size s \
-    --dinoversion 3 \
-    --dino-input dinov3_vitb16 \
+    --dino-variant vitb16 \
+    --integration single \
     --epochs 10 \
-    --name test_official_dinov3
+    --name test_dinov3_single
+
+# Example training with DINOv3 dual integration
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size s \
+    --dino-variant vitb16 \
+    --integration dual \
+    --epochs 10 \
+    --name test_dinov3_dual
 
 # Test backward compatibility with DINOv2
 python train_yolov12_dino.py \
@@ -959,6 +975,7 @@ python train_yolov12_dino.py \
     --yolo-size s \
     --dinoversion 2 \
     --dino-variant vitb16 \
+    --integration single \
     --epochs 5 \
     --name test_dinov2_compatibility
 ```
