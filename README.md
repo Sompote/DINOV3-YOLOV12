@@ -15,7 +15,7 @@
 
 ### 🆕 **NEW: Complete DINOv3-YOLOv12 Integration** - Systematic integration of YOLOv12 Turbo with Meta's DINOv3 Vision Transformers
 
-**5 YOLOv12 sizes** • **Official DINOv3 models** • **4 integration types** • **Input+Backbone enhancement** • **Single/Dual/Full integration** • **40+ model combinations**
+**5 YOLOv12 sizes** • **Official DINOv3 models** • **3 integration types** • **Input+Backbone enhancement** • **Single/Dual/Triple integration** • **40+ model combinations**
 
 [📖 **Quick Start**](#-quick-start) • [🎯 **Model Zoo**](#-model-zoo) • [🛠️ **Installation**](#️-installation) • [📊 **Training**](#-training) • [🤝 **Contributing**](#-contributing)
 
@@ -27,7 +27,9 @@
 
 ## Updates
 
-- 2025/09/14: **🚀 NEW: Complete DINOv3-YOLOv12 Integration** - Added comprehensive integration with official DINOv3 models from Facebook Research! Features systematic architecture with 40+ model combinations, 4 integration approaches (Input P0, Single P4, Dual P3+P4, Full P0+P3+P4), and support for all model sizes (n,s,l,x). Now includes **`--dino-input`** parameter for custom models and 100% test success rate across all variants.
+- 2025/09/26: **🔄 REVISED: Integration Logic & Enforcement** - Updated `--integration` option meanings for better user understanding: **single** = P0 input preprocessing only, **dual** = P3+P4 backbone integration, **triple** = P0+P3+P4 all levels. **IMPORTANT**: `--integration` is now REQUIRED when using DINO enhancement. Pure YOLOv12 training requires no DINO arguments.
+
+- 2025/09/14: **🚀 NEW: Complete DINOv3-YOLOv12 Integration** - Added comprehensive integration with official DINOv3 models from Facebook Research! Features systematic architecture with 40+ model combinations, 3 integration approaches (Single P0, Dual P3+P4, Triple P0+P3+P4), and support for all model sizes (n,s,l,x). Now includes **`--dino-input`** parameter for custom models and 100% test success rate across all variants.
 
 - 2025/02/19: [arXiv version](https://arxiv.org/abs/2502.12524) is public. [Demo](https://huggingface.co/spaces/sunsmarterjieleaf/yolov12) is available.
 
@@ -77,46 +79,37 @@ YOLOv12 surpasses all popular real-time object detectors in accuracy with compet
 
 *Comprehensive technical architecture showing internal components, data flow, and feature processing pipeline for YOLOv12 + DINOv3 integration*
 
-### 🚀 **DINOv3-YOLOv12 Integration - Four Integration Approaches**
+### 🚀 **DINOv3-YOLOv12 Integration - Three Integration Approaches**
 
-**YOLOv12 + DINOv3 Integration** - Enhanced object detection with Vision Transformers. This implementation provides **four distinct integration approaches** for maximum flexibility:
+**YOLOv12 + DINOv3 Integration** - Enhanced object detection with Vision Transformers. This implementation provides **three distinct integration approaches** for maximum flexibility:
 
-### 🏗️ **Four Integration Architectures**
+### 🏗️ **Three Integration Architectures**
 
-#### 1️⃣ **Input Initial Processing (P0 Level) 🌟 Recommended**
+#### 1️⃣ **Single Integration (P0 Input Preprocessing) 🌟 Most Stable**
 ```
 Input Image → DINO3Preprocessor → Original YOLOv12 → Output
 ```
-- **Location**: Before P0 (input preprocessing)
+- **Location**: P0 (input preprocessing only)
 - **Architecture**: DINO enhances input images, then feeds into standard YOLOv12
-- **Command**: `--dino-input dinov3_vitb16` (without `--dino-variant`)
-- **Benefits**: Clean architecture, no backbone modifications, stable training
+- **Command**: `--dinoversion 3 --dino-variant vitb16 --integration single`
+- **Benefits**: Clean architecture, most stable training, minimal computational overhead
 
-#### 2️⃣ **Single-Scale Integration (P4 Level) ⚡ Efficient**
-```
-Input → YOLOv12 Backbone → DINO3Backbone(P4) → YOLOv12 Head → Output
-```
-- **Location**: P4 level (40×40×256 feature maps)
-- **Architecture**: DINO integrated inside YOLOv12 backbone at P4
-- **Command**: `--dino-variant vitb16 --integration single`
-- **Benefits**: Enhanced medium object detection, moderate computational cost
-
-#### 3️⃣ **Dual-Scale Integration (P3+P4 Levels) 🎪 High Performance**
+#### 2️⃣ **Dual Integration (P3+P4 Backbone) 🎪 High Performance**
 ```
 Input → YOLOv12 → DINO3(P3) → YOLOv12 → DINO3(P4) → Head → Output
 ```
-- **Location**: Both P3 (80×80×256) and P4 (40×40×256) levels
+- **Location**: P3 (80×80×256) and P4 (40×40×256) backbone levels
 - **Architecture**: Dual DINO integration at multiple feature scales
-- **Command**: `--dino-variant vitb16 --integration dual`
+- **Command**: `--dinoversion 3 --dino-variant vitb16 --integration dual`
 - **Benefits**: Enhanced small and medium object detection, highest performance
 
-#### 4️⃣ **Full-Scale Integration (P0+P3+P4 Levels) 🚀 Maximum Enhancement**
+#### 3️⃣ **Triple Integration (P0+P3+P4 All Levels) 🚀 Maximum Enhancement**
 ```
 Input → DINO3Preprocessor → YOLOv12 → DINO3(P3) → DINO3(P4) → Head → Output
 ```
 - **Location**: P0 (input) + P3 (80×80×256) + P4 (40×40×256) levels
 - **Architecture**: Complete DINO integration across all processing levels
-- **Command**: `--dino-input dinov3_vitb16 --dino-variant vitb16 --integration dual`
+- **Command**: `--dinoversion 3 --dino-variant vitb16 --integration triple`
 - **Benefits**: Maximum feature enhancement, ultimate performance, best accuracy
 
 ### 🎪 **Systematic Naming Convention**
@@ -130,51 +123,42 @@ yolov12{size}-dino{version}-{variant}-{integration}.yaml
 - **`{size}`**: YOLOv12 size → `n` (nano), `s` (small), `m` (medium), `l` (large), `x` (extra large)
 - **`{version}`**: DINO version → `3` (DINOv3)
 - **`{variant}`**: DINO model variant → `vitb16`, `convnext_base`, `vitl16`, etc.
-- **`{integration}`**: Integration type → `single` (P4 only), `dual` (P3+P4), `preprocess` (P0), `full` (P0+P3+P4)
+- **`{integration}`**: Integration type → `single` (P0 input), `dual` (P3+P4 backbone), `triple` (P0+P3+P4 all levels)
 
 ### 🚀 **Quick Selection Guide**
 
 | Model | YOLOv12 Size | DINO Backbone | Integration | Parameters | Speed | Use Case | Best For |
 |:------|:-------------|:--------------|:------------|:-----------|:------|:---------|:---------|
 | 🚀 **yolov12n** | Nano | Standard CNN | None | 2.5M | ⚡ Fastest | Ultra-lightweight | Embedded systems |
-| 🌟 **yolov12s-dino3-preprocess** | Small + ViT-B/16 | **P0 (Input)** | 95M | 🌟 Stable | **Input Enhancement** | **Most Stable** |
-| ⚡ **yolov12s-dino3-vitb16-single** | Small + ViT-B/16 | **Single (P4)** | 95M | ⚡ Efficient | **Medium Objects** | **Balanced** |
-| 🎪 **yolov12s-dino3-vitb16-dual** | Small + ViT-B/16 | **Dual (P3+P4)** | 95M | 🎪 Accurate | **Multi-scale** | **Highest Performance** |
-| 🚀 **yolov12s-dino3-vitb16-full** | Small + ViT-B/16 | **Full (P0+P3+P4)** | 95M | 🚀 Ultimate | **Maximum Enhancement** | **Ultimate Performance** |
+| 🌟 **yolov12s-dino3-vitb16-single** | Small + ViT-B/16 | **Single (P0 Input)** | 95M | 🌟 Stable | **Input Preprocessing** | **Most Stable** |
+| ⚡ **yolov12s-dino3-vitb16-dual** | Small + ViT-B/16 | **Dual (P3+P4)** | 95M | ⚡ Efficient | **Backbone Enhancement** | **High Performance** |
+| 🚀 **yolov12s-dino3-vitb16-triple** | Small + ViT-B/16 | **Triple (P0+P3+P4)** | 95M | 🚀 Ultimate | **Full Integration** | **Maximum Enhancement** |
 | 🏋️ **yolov12l** | Large | Standard CNN | None | 26.5M | 🏋️ Medium | High accuracy CNN | Production systems |
 | 🎯 **yolov12l-dino3-vitl16-dual** | Large + ViT-L/16 | **Dual (P3+P4)** | 327M | 🎯 Maximum | Complex scenes | Research/High-end |
 
 ### 🎯 **Integration Strategy Guide**
 
-#### **Input Initial Processing (P0) 🌟 Most Stable**
+#### **Single Integration (P0 Input) 🌟 Most Stable**
 - **What**: DINOv3 preprocesses input images before entering YOLOv12 backbone
 - **Best For**: Stable training, clean architecture, general enhancement
 - **Performance**: +3-8% overall mAP improvement with minimal overhead
 - **Efficiency**: Uses original YOLOv12 architecture, most stable training
 - **Memory**: ~4GB VRAM, minimal training time increase
-- **Command**: `--dino-input dinov3_vitb16` (without `--dino-variant`)
+- **Command**: `--dinoversion 3 --dino-variant vitb16 --integration single`
 
-#### **Single-Scale Enhancement (P4 Only) ⚡ Efficient**
-- **What**: DINOv3 enhancement only at P4 level (40×40×256)
-- **Best For**: Medium objects (32-96 pixels), general purpose detection
-- **Performance**: +5-12% overall mAP improvement
-- **Efficiency**: Optimal balance of accuracy and computational cost
-- **Memory**: ~4GB VRAM, 1.5x training time
-- **Command**: `--dino-variant vitb16 --integration single`
-
-#### **Dual-Scale Enhancement (P3+P4) 🎪 Highest Performance**
-- **What**: DINOv3 enhancement at both P3 (80×80×256) and P4 (40×40×256) levels  
+#### **Dual Integration (P3+P4 Backbone) 🎪 High Performance**
+- **What**: DINOv3 enhancement at both P3 (80×80×256) and P4 (40×40×256) backbone levels  
 - **Best For**: Complex scenes with mixed object sizes, small+medium objects
 - **Performance**: +10-18% overall mAP improvement (+8-15% small objects)
 - **Trade-off**: 2x computational cost, ~8GB VRAM, 2x training time
-- **Command**: `--dino-variant vitb16 --integration dual`
+- **Command**: `--dinoversion 3 --dino-variant vitb16 --integration dual`
 
-#### **Full-Scale Enhancement (P0+P3+P4) 🚀 Ultimate Performance**
+#### **Triple Integration (P0+P3+P4 All Levels) 🚀 Maximum Enhancement**
 - **What**: Complete DINOv3 integration across all processing levels (input + backbone)
 - **Best For**: Research, maximum accuracy requirements, complex detection tasks
 - **Performance**: +15-25% overall mAP improvement (maximum possible enhancement)
 - **Trade-off**: Highest computational cost, ~12GB VRAM, 3x training time
-- **Command**: `--dino-input dinov3_vitb16 --dino-variant vitb16 --integration dual`
+- **Command**: `--dinoversion 3 --dino-variant vitb16 --integration triple`
 
 ### 📊 **Complete Model Matrix**
 
@@ -301,63 +285,69 @@ dinov3_convnext_base # 🧠 HYBRID: CNN+ViT fusion (89M params, 8GB VRAM)
 - **🔄 Backward compatible**: Still supports DINOv2 with `--dinoversion 2`
 - **🚀 Enhanced performance**: DINOv3 provides +2-5% better accuracy than DINOv2
 
-### 🎯 **Quick Start with DINOv3 - All Three Approaches**
+### 🎯 **Quick Start Examples - Pure YOLOv12 vs DINO Enhancement**
 
 ```bash
-# 🌟 INPUT INITIAL PROCESSING (P0) - Most Stable & Recommended
+# 🚀 PURE YOLOv12 (No DINO) - Fast & Lightweight
 python train_yolov12_dino.py \
     --data coco.yaml \
     --yolo-size s \
-    --dinoversion 3 \
-    --dino-input dinov3_vitb16 \
     --epochs 100 \
-    --batch-size 16 \
-    --name stable_preprocessing
+    --name pure_yolov12
 
-# ⚡ SINGLE-SCALE INTEGRATION (P4) - Efficient for Medium Objects  
+# 🌟 SINGLE INTEGRATION (P0 Input) - Most Stable & Recommended
 python train_yolov12_dino.py \
     --data coco.yaml \
     --yolo-size s \
-    --dinoversion 3 \
     --dino-variant vitb16 \
     --integration single \
     --epochs 100 \
     --batch-size 16 \
-    --name efficient_single
+    --name stable_p0_preprocessing
 
-# 🎪 DUAL-SCALE INTEGRATION (P3+P4) - Highest Performance
+# 🎪 DUAL INTEGRATION (P3+P4 Backbone) - High Performance
 python train_yolov12_dino.py \
     --data coco.yaml \
     --yolo-size s \
-    --dinoversion 3 \
     --dino-variant vitb16 \
     --integration dual \
     --epochs 100 \
     --batch-size 16 \
-    --name high_performance_dual
+    --name high_performance_p3p4
 
-# High-performance official DINOv3 (p0+p3+p4)
+# 🚀 TRIPLE INTEGRATION (P0+P3+P4 All Levels) - Maximum Enhancement
 python train_yolov12_dino.py \
-      --data coco\
+    --data coco.yaml \
     --yolo-size l \
-    --dinoversion 3 \
-    --dino-input vitb16 \
     --dino-variant vitb16 \
-    --integration dual \
+    --integration triple \
     --epochs 100 \
-    --batch-size 16 \
-    --name high_performance_dual_withp0
-  
+    --batch-size 8 \
+    --name ultimate_p0p3p4
+```
+
+### ⚠️ **Important: --integration is REQUIRED when using DINO**
+
+```bash
+# ❌ WRONG: DINO variant without integration (will fail)
+python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16
+
+# ✅ CORRECT: DINO variant with integration
+python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16 --integration single
+
+# ✅ CORRECT: Pure YOLOv12 (no DINO arguments needed)
+python train_yolov12_dino.py --data data.yaml --yolo-size s
 ```
 
 ### 📋 **Command Summary**
 
-| Integration Type | Command Parameters | DINO Version | Best For |
-|:-----------------|:-------------------|:-------------|:---------|
-| **Input Processing (P0)** 🌟 | `--dinoversion 3 --dino-input dinov3_vitb16` | DINOv3 (default) | Most stable, clean architecture |
-| **Single-Scale (P4)** ⚡ | `--dinoversion 3 --dino-variant vitb16 --integration single` | DINOv3 (default) | Medium objects, balanced performance |
-| **Dual-Scale (P3+P4)** 🎪 | `--dinoversion 3 --dino-variant vitb16 --integration dual` | DINOv3 (default) | Multi-scale, highest performance |
-| **Legacy Support** 🔄 | `--dinoversion 2 --dino-variant vitb16 --integration single` | DINOv2 (backward compatible) | Existing workflows |
+| Model Type | Command Parameters | DINO Version | Best For |
+|:-----------|:-------------------|:-------------|:---------|
+| **Pure YOLOv12** 🚀 | `--yolo-size s` (no DINO arguments) | None | Fast training, lightweight, production |
+| **Single (P0 Input)** 🌟 | `--dino-variant vitb16 --integration single` | DINOv3 (auto) | Most stable, input preprocessing |
+| **Dual (P3+P4 Backbone)** 🎪 | `--dino-variant vitb16 --integration dual` | DINOv3 (auto) | High performance, multi-scale backbone |
+| **Triple (P0+P3+P4 All)** 🚀 | `--dino-variant vitb16 --integration triple` | DINOv3 (auto) | Maximum enhancement, all levels |
+| **Legacy Support** 🔄 | `--dinoversion 2 --dino-variant vitb16 --integration single` | DINOv2 (explicit) | Existing workflows |
 
 ## 🔥 NEW: `--dino-input` Custom Model Support
 
@@ -933,21 +923,17 @@ python train_yolov12_dino.py \
 #### **📚 Examples for All Integration Types**
 
 ```bash
-# 1️⃣ Single P4 Integration
+# 1️⃣ Single P0 Input Integration
 python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16 --integration single
 python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16 --integration single --unfreeze-dino
 
-# 2️⃣ Dual P3+P4 Integration  
+# 2️⃣ Dual P3+P4 Backbone Integration  
 python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16 --integration dual
 python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16 --integration dual --unfreeze-dino
 
-# 3️⃣ Input P0 Preprocessing
-python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-input dinov3_vitb16  
-python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-input dinov3_vitb16 --unfreeze-dino
-
-# 4️⃣ Full P0+P3+P4 Integration (Ultimate)
-python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-input dinov3_vitb16 --dino-variant vitb16 --integration dual
-python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-input dinov3_vitb16 --dino-variant vitb16 --integration dual --unfreeze-dino
+# 3️⃣ Triple P0+P3+P4 All Levels Integration (Ultimate)
+python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16 --integration triple
+python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16 --integration triple --unfreeze-dino
 ```
 
 ### 🎯 **Quick Test**
