@@ -20,14 +20,14 @@ backbone:
   - [-1, 1, Conv, [256, 3, 2]] # 3-P3/8
   - [-1, 1, C3k2, [512, False, 0.25]]
   
-  # First DINOv3 ViT-H/16+ enhancement at P3 level (1280 embed_dim -> 128 channels for nano)
+  # First DINOv3 ViT-H/16+ enhancement at P3 level (1280 embed_dim -> 128 channels for nano scale)
   - [-1, 1, DINO3Backbone, ['dinov3_vith16_plus', True, 128, '3']]  # 5: DINOv3 Huge enhanced P3
   
   - [-1, 1, Conv, [512, 3, 2]] # 6-P4/16
   - [-1, 1, C3k2, [1024, True]]
   
-  # Second DINOv3 ViT-H/16+ enhancement at P4 level (1280 embed_dim -> 256 channels for nano)
-  - [-1, 1, DINO3Backbone, ['dinov3_vith16_plus', True, 256, '3']]  # 8: DINOv3 Huge enhanced P4
+  # Second DINOv3 ViT-H/16+ enhancement at P4 level (1280 embed_dim -> 128 channels for nano scale)
+  - [-1, 1, DINO3Backbone, ['dinov3_vith16_plus', True, 128, '3']]  # 8: DINOv3 Huge enhanced P4
   
   - [-1, 1, Conv, [1024, 3, 2]] # 9-P5/32
   - [-1, 1, C3k2, [1024, True]]
