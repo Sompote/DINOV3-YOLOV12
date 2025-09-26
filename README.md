@@ -210,8 +210,26 @@ yolov12{size}-dino{version}-{variant}-{integration}.yaml
 | `dinov3_vits16` | 21M | 384 | ~4GB | ⚡ Fastest | Development, mobile | Prototyping, edge devices |
 | `dinov3_vitb16` | 86M | 768 | ~8GB | 🎯 Balanced | **Recommended** | General purpose, production |
 | `dinov3_vitl16` | 300M | 1024 | ~14GB | 🏋️ Slower | High accuracy | Research, complex scenes |
-| `dinov3_vith16_plus` | 840M | 1280 | ~32GB | 🐌 Slowest | Maximum performance | Enterprise, specialized |
-| `dinov3_vit7b16` | 6.7B | 4096 | >100GB | ⚠️ Experimental | Ultra-high-end | Research only |
+| `dinov3_vith16_plus` | **840M** | **1280** | ~32GB | 🐌 Slowest | **Maximum performance** | **Enterprise, specialized** |
+| `dinov3_vit7b16` | **6.7B** | **4096** | >100GB | ⚠️ Experimental | **Ultra-high-end** | **Research only** |
+
+#### **🔥 High-End Models - Complete Specifications**
+
+**ViT-H+/16 Distilled (840M Parameters)**
+- **Full Name**: ViT-Huge+/16 Distilled with LVD-1689M training
+- **Parameters**: 840M (distilled from larger teacher model)
+- **Embed Dimension**: 1280
+- **Training**: LVD-1689M dataset (Large Vision Dataset)
+- **Available Configs**: All YOLO sizes (n,s,m,l,x) × All integrations (single,dual,triple)
+- **Usage**: `--dino-variant vith16_plus --integration single/dual/triple`
+
+**ViT-7B/16 Ultra (6.7B Parameters)**  
+- **Full Name**: ViT-7B/16 Ultra Large Vision Transformer
+- **Parameters**: 6.7B (experimental, research-grade)
+- **Embed Dimension**: 4096
+- **Memory**: >100GB VRAM required
+- **Available Configs**: All YOLO sizes (n,s,m,l,x) × All integrations (single,dual,triple)
+- **Usage**: `--dino-variant vit7b16 --integration single/dual/triple`
 
 #### **🧠 ConvNeXt Models (CNN-ViT Hybrid)**
 
@@ -233,13 +251,16 @@ yolov12{size}-dino{version}-{variant}-{integration}.yaml
 - `dinov3_convnext_base` for CNN-ViT hybrid approach
 
 **For Research:**
-- `dinov3_vitl16` for maximum accuracy
-- `dinov3_vith16_plus` for cutting-edge performance
+- `dinov3_vitl16` for maximum accuracy (14GB VRAM)
+- `dinov3_vith16_plus` for cutting-edge performance (32GB VRAM)
+- `dinov3_vit7b16` for experimental ultra-high-end research (100GB+ VRAM)
 
 **Memory Constraints:**
 - <8GB VRAM: `dinov3_vits16`, `dinov3_convnext_tiny`
 - 8-16GB VRAM: `dinov3_vitb16`, `dinov3_convnext_base`  
-- >16GB VRAM: `dinov3_vitl16`, `dinov3_vith16_plus`
+- 16-32GB VRAM: `dinov3_vitl16`
+- 32-64GB VRAM: `dinov3_vith16_plus` (ViT-H+/16 Distilled 840M)
+- >100GB VRAM: `dinov3_vit7b16` (ViT-7B/16 Ultra 6.7B)
 
 #### **🎯 Command Examples**
 
@@ -252,6 +273,12 @@ yolov12{size}-dino{version}-{variant}-{integration}.yaml
 
 # High accuracy research (14GB+ VRAM)
 --dinoversion 3 --dino-variant vitl16
+
+# Ultra-high performance (32GB+ VRAM) - ViT-H+/16 Distilled
+--dinoversion 3 --dino-variant vith16_plus
+
+# Experimental research (100GB+ VRAM) - ViT-7B/16 Ultra
+--dinoversion 3 --dino-variant vit7b16
 
 # Hybrid CNN-ViT approach (8GB VRAM)
 --dinoversion 3 --dino-variant convnext_base
@@ -968,6 +995,26 @@ python train_yolov12_dino.py \
     --integration dual \
     --epochs 10 \
     --name test_dinov3_dual
+
+# Test ViT-H+/16 distilled (840M) - Enterprise grade
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size l \
+    --dino-variant vith16_plus \
+    --integration dual \
+    --epochs 10 \
+    --batch-size 4 \
+    --name test_vith16_plus_enterprise
+
+# Test ViT-7B/16 ultra (6.7B) - Research only  
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size l \
+    --dino-variant vit7b16 \
+    --integration single \
+    --epochs 5 \
+    --batch-size 1 \
+    --name test_vit7b16_research
 
 # Test backward compatibility with DINOv2
 python train_yolov12_dino.py \
