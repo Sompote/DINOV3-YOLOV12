@@ -567,10 +567,15 @@ pip install transformers  # For DINOv3 models
 pip install -r requirements_streamlit.txt  # For Streamlit web interface
 pip install -e .
 
-# 4. Verify installation
+# 4. Setup Hugging Face authentication (REQUIRED for DINOv3 models)
+export HUGGINGFACE_HUB_TOKEN="your_token_here"
+# Get your token from: https://huggingface.co/settings/tokens
+# Alternative: hf auth login
+
+# 5. Verify installation
 python -c "from ultralytics.nn.modules.block import DINO3Backbone; print('✅ DINOv3-YOLOv12 ready!')"
 
-# 5. Quick test (recommended)
+# 6. Quick test (recommended)
 python train_yolov12_dino.py \
     --data coco.yaml \
     --yolo-size s \
@@ -579,10 +584,10 @@ python train_yolov12_dino.py \
     --epochs 1 \
     --name quick_test
 
-# 6. Test Streamlit web interface (optional)
+# 7. Test Streamlit web interface (optional)
 python launch_streamlit.py
 
-# 7. Try pre-trained Construction-PPE model (optional)
+# 8. Try pre-trained Construction-PPE model (optional)
 wget https://1drv.ms/u/c/8a791e13b6e7ac91/ETzuMC0lHxBIv1eeOkOsq1cBZC5Cj7dAZ1W_c5yX_QcyYw?e=IW5N8r -O construction_ppe_best.pt
 python inference.py --weights construction_ppe_best.pt --source your_image.jpg --save
 ```
@@ -597,6 +602,9 @@ conda create -n dinov3-yolov12 python=3.11 -y && \
 conda activate dinov3-yolov12 && \
 pip install -r requirements.txt transformers && \
 pip install -e . && \
+echo "⚠️  IMPORTANT: Set your Hugging Face token before training:" && \
+echo "export HUGGINGFACE_HUB_TOKEN=\"your_token_here\"" && \
+echo "Get token from: https://huggingface.co/settings/tokens" && \
 echo "✅ Setup complete! Run: python train_yolov12_dino.py --help"
 ```
 
