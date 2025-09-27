@@ -570,6 +570,9 @@ pip install -e .
 # 4. Setup Hugging Face authentication (REQUIRED for DINOv3 models)
 export HUGGINGFACE_HUB_TOKEN="your_token_here"
 # Get your token from: https://huggingface.co/settings/tokens
+# Required permissions when creating token:
+#   - Read access to contents of all repos under your personal namespace
+#   - Read access to contents of all public gated repos you can access
 # Alternative: hf auth login
 
 # 5. Verify installation
@@ -605,8 +608,50 @@ pip install -e . && \
 echo "⚠️  IMPORTANT: Set your Hugging Face token before training:" && \
 echo "export HUGGINGFACE_HUB_TOKEN=\"your_token_here\"" && \
 echo "Get token from: https://huggingface.co/settings/tokens" && \
+echo "Required permissions: Read access to repos + public gated repos" && \
 echo "✅ Setup complete! Run: python train_yolov12_dino.py --help"
 ```
+
+## 🔐 Hugging Face Authentication Setup
+
+### **Why Authentication is Required**
+DINOv3 models from Facebook Research are hosted on Hugging Face as **gated repositories**, requiring authentication to access.
+
+### **Step-by-Step Token Setup**
+
+1. **Create Hugging Face Account**: Visit [huggingface.co](https://huggingface.co) and sign up
+
+2. **Generate Access Token**:
+   - Go to [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+   - Click "New token"
+   - Give it a name (e.g., "dinov3-training")
+   
+3. **Set Required Permissions**:
+   ```
+   Repositories:
+   ✅ Read access to contents of all repos under your personal namespace
+   ✅ Read access to contents of all public gated repos you can access
+   ```
+
+4. **Apply Token**:
+   ```bash
+   # Method 1: Environment variable (recommended)
+   export HUGGINGFACE_HUB_TOKEN="hf_your_token_here"
+   
+   # Method 2: Login command
+   hf auth login
+   ```
+
+5. **Verify Access**:
+   ```bash
+   hf whoami
+   # Should show your username if authenticated correctly
+   ```
+
+### **Common Issues**
+- ❌ **401 Unauthorized**: Invalid or missing token
+- ❌ **Gated repo error**: Token lacks required permissions
+- ✅ **Solution**: Recreate token with correct permissions above
 
 ## Installation
 
