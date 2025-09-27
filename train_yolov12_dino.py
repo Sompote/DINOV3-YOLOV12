@@ -105,6 +105,18 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
             if Path(fallback_config).exists():
                 print(f"   📄 Using size-specific dual fallback: yolov12{yolo_size}-dino3-vitb16-dual.yaml")
                 return fallback_config
+        elif integration == 'triple':
+            # For triple integration, try dual config as base (it has better scaling)
+            fallback_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-vitb16-dual.yaml'
+            if Path(fallback_config).exists():
+                print(f"   📄 Using dual config as triple fallback: yolov12{yolo_size}-dino3-vitb16-dual.yaml")
+                return fallback_config
+        
+        # Use scale-corrected configs for better channel handling
+        scale_corrected_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-scale-corrected.yaml'
+        if Path(scale_corrected_config).exists():
+            print(f"   📄 Using scale-corrected config: yolov12{yolo_size}-dino3-scale-corrected.yaml")
+            return scale_corrected_config
         
         # Generic fallbacks for other cases
         if dino_variant and 'convnext' in dino_variant:
@@ -365,13 +377,14 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
     else:
         print("🔧 Configuring DINO3 Integration...")
         
-        # Determine DINO output channels based on actual YOLOv12 scaling
+        # Determine DINO output channels based on YOLOv12 scale-specific configs
+        # Each scale has different effective channel counts after width scaling
         scale_to_dino_channels = {
-            'n': 128,  # nano: A2C2f outputs 128 channels at P4
-            's': 256,  # small: A2C2f outputs 256 channels at P4  
-            'm': 512,  # medium: A2C2f outputs 512 channels at P4
-            'l': 512,  # large: A2C2f outputs 512 channels at P4
-            'x': 768   # extra: A2C2f outputs 768 channels at P4
+            'n': 128,   # nano: after width=0.25 scaling, effective ~128 channels
+            's': 256,   # small: after width=0.50 scaling, effective ~256 channels  
+            'm': 512,   # medium: after width=1.00 scaling, effective ~512 channels
+            'l': 512,   # large: after width=1.00 scaling, effective ~512 channels
+            'x': 768    # extra: after width=1.50 scaling, effective ~768 channels
         }
         
         dino_channels = scale_to_dino_channels.get(yolo_size, 256)
@@ -400,7 +413,7 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
                             config['backbone'][i][3].append(dino_version)
                         print(f"   ✅ Replaced CUSTOM_DINO_INPUT with {dino_input}")
                         print(f"   🔧 DINO weights {'trainable' if unfreeze_dino else 'frozen'}: freeze_backbone={not unfreeze_dino}")
-                        print(f"   🔧 Set DINO output channels: {dino_channels} (matching YOLOv12{yolo_size} P4 level)")
+                        print(f"   🔧 Set DINO output channels: {dino_channels} (matching YAML config P4 level)")
                         print(f"   🔧 Set DINO version: {dino_version}")
                     
                     # Handle any DINO3Backbone instance (even hardcoded model names like 'dinov3_vitb16')
@@ -434,7 +447,7 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
                         
                         print(f"   ✅ Replaced hardcoded DINO model '{original_model}' with {dino_input}")
                         print(f"   🔧 DINO weights {'trainable' if unfreeze_dino else 'frozen'}: freeze_backbone={not unfreeze_dino}")
-                        print(f"   🔧 Set DINO output channels: {dino_channels} (matching YOLOv12{yolo_size} P4 level)")
+                        print(f"   🔧 Set DINO output channels: {dino_channels} (matching YAML config P4 level)")
                         print(f"   🔧 Set DINO version: {dino_version}")
                     
                     # Handle DINO_VERSION replacement in any position
