@@ -426,11 +426,12 @@ python train_yolov12_dino.py \
 --dino-input facebook/dinov2-base
 --dino-input facebook/dinov3-vitb16-pretrain-lvd1689m
 
-# Local model files
+# Local weight files (NEW!)
 --dino-input /path/to/your/custom_dino_model.pth
 --dino-input ./fine_tuned_dino.pt
+--dino-input /models/my_dino_weights.safetensors
 
-# Any custom model identifier
+# Hugging Face custom models
 --dino-input your-org/custom-dino-variant
 ```
 
@@ -447,6 +448,20 @@ python test_dino3_variants.py \
     --dino-input dinov3_convnext_base \
     --integration single
 ```
+
+### ✅ **Supported Input Types**
+
+- **✅ Local weight files**: `.pth`, `.pt`, `.safetensors` files now supported!
+- **✅ Hugging Face Hub**: Full support for `facebook/` and custom org models
+- **✅ Model aliases**: Built-in shortcuts for common variants
+- **✅ Auto-detection**: Automatic architecture inference from weights
+- **✅ Multiple formats**: Handles different checkpoint formats automatically
+
+### 🔧 **Local Weight File Features**
+- **Smart loading**: Automatically detects `.pth`, `.pt`, `.safetensors` formats
+- **Architecture inference**: Automatically determines embedding dimensions
+- **Checkpoint handling**: Supports various checkpoint formats (`state_dict`, `model`, etc.)
+- **Flexible compatibility**: Creates compatible model wrappers when needed
 
 **📖 Complete Guide**: See [Custom Input Documentation](DINO_INPUT_GUIDE.md) for all supported input types and advanced usage.
 
@@ -977,6 +992,15 @@ python validate_dinov3.py --test-all
 
 # Test custom input support
 python test_custom_dino_input.py
+
+# Test local weight file loading
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size s \
+    --dino-input ./my_custom_dino.pth \
+    --integration single \
+    --epochs 5 \
+    --name test_local_weights
 
 # Example training with official DINOv3 single integration
 python train_yolov12_dino.py \

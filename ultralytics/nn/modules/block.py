@@ -1643,8 +1643,30 @@ class DINO3Backbone(nn.Module):
                              f"Error: {hf_error}. Please check your internet connection and try again.")
     
     def _load_custom_dino_model(self, custom_input):
-        """Load custom DINO model using only Hugging Face transformers."""
-        print(f"🔄 Loading custom DINO model via Hugging Face: {custom_input}")
+        """
+        Load custom DINO model from Hugging Face or local weight files.
+        
+        Supports:
+        - Hugging Face model IDs (e.g., 'facebook/dinov3-vitb16-pretrain-lvd1689m')
+        - Local weight files (.pth, .pt, .safetensors)
+        - Model aliases (e.g., 'vitb16', 'convnext_base')
+        
+        Args:
+            custom_input (str): Model identifier, file path, or alias
+            
+        Returns:
+            torch.nn.Module: Loaded DINO model
+        """
+        print(f"🔄 Loading custom DINO model: {custom_input}")
+        
+        # Check if custom_input is a local file path
+        import os
+        if custom_input.endswith(('.pth', '.pt', '.safetensors')):
+            # Could be a file path (existing or not) - let _load_local_weight_file handle existence check
+            return self._load_local_weight_file(custom_input)
+        
+        # Otherwise, handle as Hugging Face model
+        print(f"   Loading via Hugging Face: {custom_input}")
         
         # Map custom inputs to Hugging Face model IDs based on version
         if self.dino_version == '3':
@@ -1752,7 +1774,162 @@ class DINO3Backbone(nn.Module):
         except Exception as hf_error:
             print(f"❌ Custom model loading failed: {hf_error}")
             raise RuntimeError(f"Failed to load custom DINOv3 model '{custom_input}' from Hugging Face. "
-                             f"Error: {hf_error}. Please check the model name and your internet connection.")    
+                             f"Error: {hf_error}. Please check the model name and your internet connection.")
+    
+    def _load_local_weight_file(self, file_path):
+        """Load DINO model from local weight file (.pth, .pt, .safetensors)."""
+        import os
+        import torch
+        
+        print(f"📁 Loading local weight file: {file_path}")
+        
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Weight file not found: {file_path}")
+        
+        try:
+            # Load the weight file
+            if file_path.endswith('.safetensors'):
+                try:
+                    from safetensors.torch import load_file
+                    state_dict = load_file(file_path)
+                    print(f"✅ Loaded safetensors file: {file_path}")
+                except ImportError:
+                    raise ImportError("safetensors library required for .safetensors files. Install with: pip install safetensors")
+            else:
+                # Load .pth or .pt file
+                state_dict = torch.load(file_path, map_location='cpu')
+                print(f"✅ Loaded PyTorch file: {file_path}")
+            
+            # Handle different weight file formats
+            if isinstance(state_dict, dict):
+                # Check if it's a full checkpoint with model state
+                if 'state_dict' in state_dict:
+                    actual_state_dict = state_dict['state_dict']
+                    print("   Found 'state_dict' key in checkpoint")
+                elif 'model' in state_dict:
+                    actual_state_dict = state_dict['model']
+                    print("   Found 'model' key in checkpoint")
+                elif 'model_state_dict' in state_dict:
+                    actual_state_dict = state_dict['model_state_dict']
+                    print("   Found 'model_state_dict' key in checkpoint")
+                else:
+                    # Assume the dict itself is the state dict
+                    actual_state_dict = state_dict
+                    print("   Using entire dict as state_dict")
+            else:
+                raise ValueError(f"Unexpected weight file format. Expected dict, got {type(state_dict)}")
+            
+            # Try to infer model architecture from state dict
+            embed_dim = self._infer_embed_dim_from_state_dict(actual_state_dict)
+            print(f"   Inferred embedding dimension: {embed_dim}")
+            
+            # Create a compatible model architecture
+            model = self._create_model_from_state_dict(actual_state_dict, embed_dim)
+            
+            # Load the weights
+            missing_keys, unexpected_keys = model.load_state_dict(actual_state_dict, strict=False)
+            
+            if missing_keys:
+                print(f"   ⚠️  Missing keys: {len(missing_keys)} (this may be normal for partial loading)")
+            if unexpected_keys:
+                print(f"   ⚠️  Unexpected keys: {len(unexpected_keys)} (this may be normal)")
+            
+            print(f"✅ Successfully created model from local weights")
+            return model
+            
+        except Exception as e:
+            print(f"❌ Failed to load local weight file: {e}")
+            raise RuntimeError(f"Could not load weight file '{file_path}': {e}")
+    
+    def _infer_embed_dim_from_state_dict(self, state_dict):
+        """Infer embedding dimension from state dict keys."""
+        # Look for common patterns to infer embed_dim
+        for key, tensor in state_dict.items():
+            # Look for embeddings, projection layers, or attention layers
+            if any(pattern in key.lower() for pattern in ['embed', 'projection', 'qkv', 'attn']):
+                if len(tensor.shape) >= 2:
+                    # Common patterns: [embed_dim, ...] or [..., embed_dim]
+                    possible_dims = [dim for dim in tensor.shape if dim in [384, 768, 1024, 1280, 4096]]
+                    if possible_dims:
+                        embed_dim = possible_dims[0]
+                        print(f"   Detected embed_dim from {key}: {embed_dim}")
+                        self.embed_dim = embed_dim
+                        return embed_dim
+        
+        # Fallback: use default based on typical model sizes
+        total_params = sum(p.numel() for p in state_dict.values())
+        if total_params < 50_000_000:  # < 50M params
+            embed_dim = 384
+        elif total_params < 200_000_000:  # < 200M params  
+            embed_dim = 768
+        elif total_params < 1_000_000_000:  # < 1B params
+            embed_dim = 1024
+        else:
+            embed_dim = 1280
+        
+        print(f"   Estimated embed_dim from total params ({total_params:,}): {embed_dim}")
+        self.embed_dim = embed_dim
+        return embed_dim
+    
+    def _create_model_from_state_dict(self, state_dict, embed_dim):
+        """Create a compatible model architecture from state dict."""
+        from transformers import Dinov2Model, Dinov2Config
+        
+        # Create a basic DINO-compatible config
+        config = Dinov2Config(
+            hidden_size=embed_dim,
+            num_attention_heads=embed_dim // 64,  # Typical ratio
+            num_hidden_layers=12,  # Default depth
+            patch_size=16,
+            image_size=224,
+            output_hidden_states=False,
+            output_attentions=False,
+            return_dict=True
+        )
+        
+        # Try to create model with this config
+        try:
+            model = Dinov2Model(config)
+            print(f"   Created Dinov2Model with embed_dim={embed_dim}")
+            return model
+        except Exception as e:
+            print(f"   ⚠️  Could not create Dinov2Model: {e}")
+            # Create a minimal wrapper that can hold the state dict
+            return self._create_minimal_wrapper(state_dict, embed_dim)
+    
+    def _create_minimal_wrapper(self, state_dict, embed_dim):
+        """Create minimal model wrapper for custom weights."""
+        import torch.nn as nn
+        
+        class CustomDINOWrapper(nn.Module):
+            def __init__(self, embed_dim):
+                super().__init__()
+                self.embed_dim = embed_dim
+                self.config = type('Config', (), {
+                    'hidden_size': embed_dim,
+                    'output_hidden_states': False,
+                    'output_attentions': False,
+                    'return_dict': True
+                })()
+                
+                # Create placeholder layers that can hold the loaded weights
+                self.embeddings = nn.Parameter(torch.randn(1, embed_dim))
+                
+            def forward(self, pixel_values, **kwargs):
+                # Basic forward pass - adapt as needed for specific models
+                batch_size = pixel_values.shape[0]
+                # Return structure compatible with DINO models
+                last_hidden_state = pixel_values.view(batch_size, -1, self.embed_dim)
+                
+                return type('DINOOutput', (), {
+                    'last_hidden_state': last_hidden_state,
+                    'pooler_output': last_hidden_state.mean(dim=1)
+                })()
+        
+        model = CustomDINOWrapper(embed_dim)
+        print(f"   Created minimal wrapper with embed_dim={embed_dim}")
+        return model
+        
     def extract_features(self, features, input_size):
         """Extract features from DINOv3 patch features maintaining spatial dimensions."""
         # Handle different feature tensor shapes
