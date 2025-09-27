@@ -95,15 +95,23 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
         print("   📄 Using single integration as fallback")
         config_name = f'yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-single.yaml'
     
-    # Check if systematic config exists, otherwise use simplified naming
+    # Check if systematic config exists, otherwise use improved fallback
     config_path = Path('ultralytics/cfg/models/v12') / config_name
     if not config_path.exists():
-        # Fallback to existing simplified naming
-        if 'convnext' in dino_variant:
+        # Improved fallback: use size-specific configs for better architecture compatibility
+        if integration == 'dual':
+            # For dual integration, use size-specific configs with proper A2C2f modules
+            fallback_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-vitb16-dual.yaml'
+            if Path(fallback_config).exists():
+                print(f"   📄 Using size-specific dual fallback: yolov12{yolo_size}-dino3-vitb16-dual.yaml")
+                return fallback_config
+        
+        # Generic fallbacks for other cases
+        if dino_variant and 'convnext' in dino_variant:
             return 'ultralytics/cfg/models/v12/yolov12-dino3-convnext.yaml'
-        elif 'vitl' in dino_variant or 'large' in dino_variant:
+        elif dino_variant and ('vitl' in dino_variant or 'large' in dino_variant):
             return 'ultralytics/cfg/models/v12/yolov12-dino3-large.yaml'
-        elif 'vits' in dino_variant or 'small' in dino_variant:
+        elif dino_variant and ('vits' in dino_variant or 'small' in dino_variant):
             return 'ultralytics/cfg/models/v12/yolov12-dino3-small.yaml'
         else:
             return 'ultralytics/cfg/models/v12/yolov12-dino3.yaml'
@@ -340,7 +348,10 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
             for i, layer in enumerate(config['backbone']):
                 if len(layer) >= 4 and isinstance(layer[3], list) and len(layer[3]) > 0:
                     if layer[3][0] == 'DINO_MODEL_NAME':
-                        config['backbone'][i][3][0] = dino_input
+                        if os.path.exists(str(dino_input)):
+                            config['backbone'][i][3][0] = f"'{str(dino_input)}'"
+                        else:
+                            config['backbone'][i][3][0] = str(dino_input)
                         # Set freeze_backbone parameter (inverted logic: unfreeze_dino=True means freeze_backbone=False)
                         config['backbone'][i][3][1] = not unfreeze_dino
                         # Preprocessing always outputs 3 channels (enhanced RGB)
@@ -350,8 +361,8 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
                         print(f"   🔧 DINO3Preprocessor outputs: 3 channels (enhanced RGB)")
                         break  # Only replace first occurrence
     
-    # Handle integrated approach (DINO inside backbone)
-    elif 'custom' in config_path:
+    # Handle integrated approach (DINO inside backbone) OR any config with DINO3Backbone
+    else:
         print("🔧 Configuring DINO3 Integration...")
         
         # Determine DINO output channels based on actual YOLOv12 scaling
@@ -365,13 +376,16 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
         
         dino_channels = scale_to_dino_channels.get(yolo_size, 256)
         
-        # Replace CUSTOM_DINO_INPUT and DINO_VERSION placeholders in backbone
+        # Replace CUSTOM_DINO_INPUT, DINO_VERSION placeholders, or any DINO3Backbone instances
         if 'backbone' in config:
             for i, layer in enumerate(config['backbone']):
-                if len(layer) >= 4 and isinstance(layer[3], list) and len(layer[3]) > 0:
+                if len(layer) >= 4 and layer[2] == 'DINO3Backbone' and isinstance(layer[3], list):
                     # Handle CUSTOM_DINO_INPUT replacement
-                    if layer[3][0] == 'CUSTOM_DINO_INPUT':
-                        config['backbone'][i][3][0] = dino_input
+                    if len(layer[3]) > 0 and layer[3][0] == 'CUSTOM_DINO_INPUT':
+                        if os.path.exists(str(dino_input)):
+                            config['backbone'][i][3][0] = f"'{str(dino_input)}'"
+                        else:
+                            config['backbone'][i][3][0] = str(dino_input)
                         # Set freeze_backbone parameter (inverted logic: unfreeze_dino=True means freeze_backbone=False)
                         if len(layer[3]) > 1:
                             config['backbone'][i][3][1] = not unfreeze_dino
@@ -388,6 +402,41 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
                         print(f"   🔧 DINO weights {'trainable' if unfreeze_dino else 'frozen'}: freeze_backbone={not unfreeze_dino}")
                         print(f"   🔧 Set DINO output channels: {dino_channels} (matching YOLOv12{yolo_size} P4 level)")
                         print(f"   🔧 Set DINO version: {dino_version}")
+                    
+                    # Handle any DINO3Backbone instance (even hardcoded model names like 'dinov3_vitb16')
+                    elif len(layer[3]) > 0 and isinstance(layer[3][0], str):
+                        # Replace any hardcoded DINO model name with custom input
+                        original_model = layer[3][0]
+                        # Ensure the dino_input is treated as a string in YAML - use quotes for paths
+                        if os.path.exists(str(dino_input)):
+                            # For file paths, wrap in quotes to ensure proper YAML parsing
+                            config['backbone'][i][3][0] = f"'{str(dino_input)}'"
+                        else:
+                            config['backbone'][i][3][0] = str(dino_input)
+                        
+                        # Set freeze_backbone parameter
+                        if len(layer[3]) > 1:
+                            config['backbone'][i][3][1] = not unfreeze_dino
+                        else:
+                            config['backbone'][i][3].append(not unfreeze_dino)
+                        
+                        # Set DINO output channels to match the actual scale
+                        if len(layer[3]) > 2:
+                            config['backbone'][i][3][2] = dino_channels
+                        else:
+                            config['backbone'][i][3].append(dino_channels)
+                        
+                        # Add dino_version parameter
+                        if len(layer[3]) > 3:
+                            config['backbone'][i][3][3] = dino_version
+                        else:
+                            config['backbone'][i][3].append(dino_version)
+                        
+                        print(f"   ✅ Replaced hardcoded DINO model '{original_model}' with {dino_input}")
+                        print(f"   🔧 DINO weights {'trainable' if unfreeze_dino else 'frozen'}: freeze_backbone={not unfreeze_dino}")
+                        print(f"   🔧 Set DINO output channels: {dino_channels} (matching YOLOv12{yolo_size} P4 level)")
+                        print(f"   🔧 Set DINO version: {dino_version}")
+                    
                     # Handle DINO_VERSION replacement in any position
                     for j, arg in enumerate(layer[3]):
                         if arg == 'DINO_VERSION':
@@ -401,7 +450,23 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
     # Create a temporary config file with the modifications
     temp_fd, temp_path = tempfile.mkstemp(suffix=f'_{yolo_size}.yaml', prefix=f'yolov12{yolo_size}_dino_')
     with os.fdopen(temp_fd, 'w') as f:
-        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        yaml.dump(config, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    
+    # Print the modified config for debugging
+    print(f"   📄 Generated modified config: {temp_path}")
+    with open(temp_path, 'r') as f:
+        lines = f.readlines()
+        print(f"   Config content ({len(lines)} lines total):")
+        # Find and show lines around DINO3Backbone
+        for i, line in enumerate(lines):
+            if 'DINO3Backbone' in line or 'segment_defect' in line:
+                start = max(0, i-2)
+                end = min(len(lines), i+3)
+                print(f"   Found DINO3Backbone around line {i+1}:")
+                for j in range(start, end):
+                    marker = ">>>" if j == i else "   "
+                    print(f"   {marker} {j+1:2d}: {lines[j].rstrip()}")
+                break
     
     return temp_path
 

@@ -1807,8 +1807,15 @@ class DINO3Backbone(nn.Module):
                     actual_state_dict = state_dict['state_dict']
                     print("   Found 'state_dict' key in checkpoint")
                 elif 'model' in state_dict:
-                    actual_state_dict = state_dict['model']
-                    print("   Found 'model' key in checkpoint")
+                    # Check if model is a state dict or a model object
+                    if isinstance(state_dict['model'], dict):
+                        actual_state_dict = state_dict['model']
+                        print("   Found 'model' key with state dict in checkpoint")
+                    elif hasattr(state_dict['model'], 'state_dict'):
+                        actual_state_dict = state_dict['model'].state_dict()
+                        print("   Found 'model' key with model object - extracted state_dict")
+                    else:
+                        raise ValueError(f"'model' key contains unsupported type: {type(state_dict['model'])}")
                 elif 'model_state_dict' in state_dict:
                     actual_state_dict = state_dict['model_state_dict']
                     print("   Found 'model_state_dict' key in checkpoint")
@@ -1816,8 +1823,12 @@ class DINO3Backbone(nn.Module):
                     # Assume the dict itself is the state dict
                     actual_state_dict = state_dict
                     print("   Using entire dict as state_dict")
+            elif hasattr(state_dict, 'state_dict'):
+                # Handle case where the loaded object is a PyTorch model directly
+                actual_state_dict = state_dict.state_dict()
+                print("   Loaded object is a PyTorch model - extracted state_dict")
             else:
-                raise ValueError(f"Unexpected weight file format. Expected dict, got {type(state_dict)}")
+                raise ValueError(f"Unexpected weight file format. Expected dict or model object, got {type(state_dict)}")
             
             # Try to infer model architecture from state dict
             embed_dim = self._infer_embed_dim_from_state_dict(actual_state_dict)
