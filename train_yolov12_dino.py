@@ -259,10 +259,8 @@ def parse_arguments():
                        help='SGD momentum/beta1 for Adam optimizers (default: 0.937)')
     parser.add_argument('--weight-decay', type=float, default=0.0005,
                        help='Weight decay (default: 0.0005)')
-    parser.add_argument('--cls-pw', type=float, default=1.0,
-                       help='Classification positive weight (default: 1.0)')
-    parser.add_argument('--obj-pw', type=float, default=1.0,
-                       help='Object positive weight (default: 1.0)')
+    parser.add_argument('--kobj', type=float, default=1.0,
+                       help='Objectness loss gain (default: 1.0)')
     
     # Regularization
     parser.add_argument('--label-smoothing', type=float, default=0.0,
@@ -279,8 +277,8 @@ def parse_arguments():
                        help='Mosaic augmentation probability (default: 1.0)')
     parser.add_argument('--mixup', type=float, default=0.0,
                        help='Mixup augmentation probability (default: 0.0)')
-    parser.add_argument('--copy-paste', type=float, default=0.1,
-                       help='Copy-paste augmentation probability (default: 0.1)')
+    parser.add_argument('--copy-paste', type=float, default=0.0,
+                       help='Copy-paste augmentation probability (default: 0.0)')
     
     # Advanced augmentation controls
     parser.add_argument('--hsv-h', type=float, default=0.015,
@@ -301,16 +299,16 @@ def parse_arguments():
                        help='Vertical flip probability (default: 0.0)')
     parser.add_argument('--fliplr', type=float, default=0.5,
                        help='Horizontal flip probability (default: 0.5)')
-    parser.add_argument('--erasing', type=float, default=0.0,
-                       help='Random erasing probability (default: 0.0)')
+    parser.add_argument('--erasing', type=float, default=0.4,
+                       help='Random erasing probability (default: 0.4)')
     parser.add_argument('--crop-fraction', type=float, default=1.0,
                        help='Image crop fraction for classification (default: 1.0)')
     
     # Training control options
     parser.add_argument('--resume', type=str, default=None,
                        help='Resume training from checkpoint')
-    parser.add_argument('--save-period', type=int, default=10,
-                       help='Save checkpoint every n epochs (default: 10)')
+    parser.add_argument('--save-period', type=int, default=-1,
+                       help='Save checkpoint every n epochs (-1 to disable, default: -1)')
     parser.add_argument('--val', action='store_true', default=True,
                        help='Validate during training (default: True)')
     parser.add_argument('--plots', action='store_true', default=True,
@@ -327,8 +325,6 @@ def parse_arguments():
                        help='Classification loss gain (default: 0.5)')
     parser.add_argument('--dfl', type=float, default=1.5,
                        help='Distribution focal loss gain (default: 1.5)')
-    parser.add_argument('--fl-gamma', type=float, default=0.0,
-                       help='Focal loss gamma (default: 0.0 for no focal loss)')
     
     # System and performance
     parser.add_argument('--workers', type=int, default=8,
@@ -716,8 +712,7 @@ def main():
             warmup_momentum=args.warmup_momentum,
             warmup_bias_lr=args.warmup_bias_lr,
             optimizer=args.optimizer,
-            cls_pw=args.cls_pw,
-            obj_pw=args.obj_pw,
+            kobj=args.kobj,
             
             # Regularization
             label_smoothing=args.label_smoothing,
@@ -752,7 +747,6 @@ def main():
             box=args.box,
             cls=args.cls,
             dfl=args.dfl,
-            fl_gamma=args.fl_gamma,
             
             # System and performance
             workers=args.workers,
