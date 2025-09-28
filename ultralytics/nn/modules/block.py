@@ -1600,10 +1600,20 @@ class DINO3Backbone(nn.Module):
         print(f"   Loading DINOv{self.dino_version} from Hugging Face: {hf_model_id}")
         
         try:
+            import os
             from transformers import AutoModel, AutoConfig
             
+            # Get Hugging Face token from environment
+            hf_token = os.getenv('HUGGINGFACE_HUB_TOKEN')
+            if hf_token:
+                print(f"   Using HUGGINGFACE_HUB_TOKEN: {hf_token[:7]}...")
+                token_kwargs = {'token': hf_token}
+            else:
+                print("   No HUGGINGFACE_HUB_TOKEN found, using default authentication")
+                token_kwargs = {}
+            
             # Load config first and ensure required attributes exist
-            config = AutoConfig.from_pretrained(hf_model_id)
+            config = AutoConfig.from_pretrained(hf_model_id, **token_kwargs)
             
             # Add missing attributes that might be expected by transformers
             if not hasattr(config, 'output_attentions'):
@@ -1614,7 +1624,7 @@ class DINO3Backbone(nn.Module):
                 config.return_dict = True
                 
             # Load model with the configured config
-            model = AutoModel.from_pretrained(hf_model_id, config=config)
+            model = AutoModel.from_pretrained(hf_model_id, config=config, **token_kwargs)
             print(f"✅ Successfully loaded model from Hugging Face: {hf_model_id}")
             
             # Get embedding dimension from loaded model
@@ -1731,10 +1741,20 @@ class DINO3Backbone(nn.Module):
         # Load from Hugging Face
         try:
             print(f"   Loading from Hugging Face: {hf_model_id}")
+            import os
             from transformers import AutoModel, AutoConfig
             
+            # Get Hugging Face token from environment
+            hf_token = os.getenv('HUGGINGFACE_HUB_TOKEN')
+            if hf_token:
+                print(f"   Using HUGGINGFACE_HUB_TOKEN: {hf_token[:7]}...")
+                token_kwargs = {'token': hf_token}
+            else:
+                print("   No HUGGINGFACE_HUB_TOKEN found, using default authentication")
+                token_kwargs = {}
+            
             # Load config first and ensure required attributes exist
-            config = AutoConfig.from_pretrained(hf_model_id)
+            config = AutoConfig.from_pretrained(hf_model_id, **token_kwargs)
             
             # Add missing attributes that might be expected by transformers
             if not hasattr(config, 'output_attentions'):
@@ -1745,7 +1765,7 @@ class DINO3Backbone(nn.Module):
                 config.return_dict = True
                 
             # Load model with the configured config
-            model = AutoModel.from_pretrained(hf_model_id, config=config)
+            model = AutoModel.from_pretrained(hf_model_id, config=config, **token_kwargs)
             print(f"✅ Successfully loaded custom model from Hugging Face: {hf_model_id}")
             
             # Get embedding dimension

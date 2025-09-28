@@ -635,8 +635,9 @@ DINOv3 models from Facebook Research are hosted on Hugging Face as **gated repos
 
 4. **Apply Token**:
    ```bash
-   # Method 1: Environment variable (recommended)
+   # Method 1: Environment variable (recommended) ✅ FULLY SUPPORTED
    export HUGGINGFACE_HUB_TOKEN="hf_your_token_here"
+   # The training script automatically detects and uses this token
    
    # Method 2: Login command (interactive)
    hf auth login
@@ -645,6 +646,12 @@ DINOv3 models from Facebook Research are hosted on Hugging Face as **gated repos
    # - Choose to add token as git credential (Y/n)
    # - Token validation will be confirmed
    ```
+   
+   **✅ Token Detection**: The training script will show:
+   ```
+   Using HUGGINGFACE_HUB_TOKEN: hf_xxxx...
+   ```
+   If your token is properly detected.
 
 5. **Verify Access**:
    ```bash
