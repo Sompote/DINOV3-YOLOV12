@@ -638,8 +638,12 @@ DINOv3 models from Facebook Research are hosted on Hugging Face as **gated repos
    # Method 1: Environment variable (recommended)
    export HUGGINGFACE_HUB_TOKEN="hf_your_token_here"
    
-   # Method 2: Login command
+   # Method 2: Login command (interactive)
    hf auth login
+   # Follow the interactive prompts:
+   # - Enter your token (input will not be visible)
+   # - Choose to add token as git credential (Y/n)
+   # - Token validation will be confirmed
    ```
 
 5. **Verify Access**:
