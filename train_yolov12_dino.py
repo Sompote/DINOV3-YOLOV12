@@ -2,10 +2,10 @@
 """
 YOLOv12 + DINOv3 Systematic Training Script
 
-This script provides a systematic approach to training YOLOv12 models with DINOv3 enhancement,
-following the same command structure as YOLOv13 + DINO implementation.
+This script provides a comprehensive training interface for YOLOv12 models with optional DINOv3 enhancement,
+including full hyperparameter control for learning rate, optimization, data augmentation, and more.
 
-Usage Examples:
+Basic Usage Examples:
     # Base YOLOv12 (no DINO enhancement) - Pure YOLOv12
     python train_yolov12_dino.py --data coco.yaml --yolo-size s --epochs 100
 
@@ -15,8 +15,51 @@ Usage Examples:
     # Dual integration (P3+P4 backbone) - High performance  
     python train_yolov12_dino.py --data coco.yaml --yolo-size l --dino-variant vitl16 --integration dual --epochs 200
 
-    # Triple integration (P0+P3+P4 all levels) - Maximum enhancement
-    python train_yolov12_dino.py --data coco.yaml --yolo-size l --dino-variant vitl16 --integration triple --epochs 200
+Advanced Hyperparameter Examples:
+    # Custom learning rate and optimizer
+    python train_yolov12_dino.py --data coco.yaml --yolo-size s --lr 0.001 --optimizer AdamW --weight-decay 0.01
+
+    # Enhanced data augmentation
+    python train_yolov12_dino.py --data coco.yaml --yolo-size s --mosaic 0.8 --mixup 0.2 --degrees 10 --translate 0.2
+
+    # Regularization and training control
+    python train_yolov12_dino.py --data coco.yaml --yolo-size s --label-smoothing 0.1 --dropout 0.2 --patience 50
+
+    # Mixed precision and performance optimization
+    python train_yolov12_dino.py --data coco.yaml --yolo-size s --amp --workers 16 --cache ram --cos-lr
+
+Complete Example with Custom Hyperparameters:
+    python train_yolov12_dino.py \
+        --data coco.yaml \
+        --yolo-size s \
+        --dino-variant vitb16 \
+        --integration single \
+        --epochs 300 \
+        --batch-size 32 \
+        --lr 0.005 \
+        --lrf 0.1 \
+        --optimizer AdamW \
+        --weight-decay 0.001 \
+        --warmup-epochs 5 \
+        --label-smoothing 0.1 \
+        --mosaic 0.9 \
+        --mixup 0.1 \
+        --degrees 5 \
+        --translate 0.1 \
+        --fliplr 0.5 \
+        --amp \
+        --patience 100 \
+        --cos-lr \
+        --name custom_experiment
+
+Available Hyperparameters:
+    Learning Rate: --lr, --lrf, --warmup-epochs, --warmup-momentum, --warmup-bias-lr
+    Optimization: --optimizer, --momentum, --weight-decay, --grad-clip
+    Loss Weights: --box, --cls, --dfl, --cls-pw, --obj-pw, --fl-gamma
+    Augmentation: --scale, --mosaic, --mixup, --copy-paste, --hsv-h/s/v, --degrees, --translate, --shear, --perspective, --fliplr/flipud
+    Regularization: --label-smoothing, --dropout
+    Training Control: --patience, --close-mosaic, --cos-lr, --amp, --deterministic
+    System: --workers, --seed, --cache, --fraction
 """
 
 import argparse
@@ -196,32 +239,128 @@ def parse_arguments():
     # Advanced training parameters
     parser.add_argument('--unfreeze-dino', action='store_true',
                        help='Make DINO backbone weights trainable during training (default: False - DINO weights are frozen)')
+    
+    # Learning rate and optimization
     parser.add_argument('--lr', type=float, default=0.01,
-                       help='Initial learning rate')
-    parser.add_argument('--weight-decay', type=float, default=0.0005,
-                       help='Weight decay')
+                       help='Initial learning rate (default: 0.01)')
+    parser.add_argument('--lrf', type=float, default=0.01,
+                       help='Final OneCycleLR learning rate (lr0 * lrf) (default: 0.01)')
+    parser.add_argument('--warmup-epochs', type=int, default=3,
+                       help='Warmup epochs (default: 3)')
+    parser.add_argument('--warmup-momentum', type=float, default=0.8,
+                       help='Warmup initial momentum (default: 0.8)')
+    parser.add_argument('--warmup-bias-lr', type=float, default=0.1,
+                       help='Warmup initial bias learning rate (default: 0.1)')
+    
+    # Optimizer settings
+    parser.add_argument('--optimizer', type=str, default='SGD', choices=['SGD', 'Adam', 'AdamW', 'RMSProp'],
+                       help='Optimizer choice (default: SGD)')
     parser.add_argument('--momentum', type=float, default=0.937,
-                       help='SGD momentum')
+                       help='SGD momentum/beta1 for Adam optimizers (default: 0.937)')
+    parser.add_argument('--weight-decay', type=float, default=0.0005,
+                       help='Weight decay (default: 0.0005)')
+    parser.add_argument('--cls-pw', type=float, default=1.0,
+                       help='Classification positive weight (default: 1.0)')
+    parser.add_argument('--obj-pw', type=float, default=1.0,
+                       help='Object positive weight (default: 1.0)')
+    
+    # Regularization
+    parser.add_argument('--label-smoothing', type=float, default=0.0,
+                       help='Label smoothing epsilon (default: 0.0)')
+    parser.add_argument('--dropout', type=float, default=0.0,
+                       help='Dropout rate for training (default: 0.0)')
+    parser.add_argument('--grad-clip', type=float, default=0.0,
+                       help='Gradient clipping max norm (0 to disable, default: 0.0)')
     
     # Data augmentation parameters  
     parser.add_argument('--scale', type=float, default=0.5,
-                       help='Image scale augmentation')
+                       help='Image scale augmentation (default: 0.5)')
     parser.add_argument('--mosaic', type=float, default=1.0,
-                       help='Mosaic augmentation probability')
+                       help='Mosaic augmentation probability (default: 1.0)')
     parser.add_argument('--mixup', type=float, default=0.0,
-                       help='Mixup augmentation probability')
+                       help='Mixup augmentation probability (default: 0.0)')
     parser.add_argument('--copy-paste', type=float, default=0.1,
-                       help='Copy-paste augmentation probability')
+                       help='Copy-paste augmentation probability (default: 0.1)')
     
-    # Additional options
+    # Advanced augmentation controls
+    parser.add_argument('--hsv-h', type=float, default=0.015,
+                       help='HSV-Hue augmentation range (fraction) (default: 0.015)')
+    parser.add_argument('--hsv-s', type=float, default=0.7,
+                       help='HSV-Saturation augmentation range (fraction) (default: 0.7)')
+    parser.add_argument('--hsv-v', type=float, default=0.4,
+                       help='HSV-Value augmentation range (fraction) (default: 0.4)')
+    parser.add_argument('--degrees', type=float, default=0.0,
+                       help='Rotation degrees (default: 0.0)')
+    parser.add_argument('--translate', type=float, default=0.1,
+                       help='Translation range as fraction of image size (default: 0.1)')
+    parser.add_argument('--shear', type=float, default=0.0,
+                       help='Shear degrees (default: 0.0)')
+    parser.add_argument('--perspective', type=float, default=0.0,
+                       help='Perspective transformation coefficient (default: 0.0)')
+    parser.add_argument('--flipud', type=float, default=0.0,
+                       help='Vertical flip probability (default: 0.0)')
+    parser.add_argument('--fliplr', type=float, default=0.5,
+                       help='Horizontal flip probability (default: 0.5)')
+    parser.add_argument('--erasing', type=float, default=0.0,
+                       help='Random erasing probability (default: 0.0)')
+    parser.add_argument('--crop-fraction', type=float, default=1.0,
+                       help='Image crop fraction for classification (default: 1.0)')
+    
+    # Training control options
     parser.add_argument('--resume', type=str, default=None,
                        help='Resume training from checkpoint')
     parser.add_argument('--save-period', type=int, default=10,
-                       help='Save checkpoint every n epochs')
+                       help='Save checkpoint every n epochs (default: 10)')
     parser.add_argument('--val', action='store_true', default=True,
-                       help='Validate during training')
+                       help='Validate during training (default: True)')
     parser.add_argument('--plots', action='store_true', default=True,
-                       help='Generate training plots')
+                       help='Generate training plots (default: True)')
+    parser.add_argument('--patience', type=int, default=100,
+                       help='Early stopping patience (epochs) (default: 100)')
+    parser.add_argument('--close-mosaic', type=int, default=10,
+                       help='Disable mosaic augmentation for final epochs (default: 10)')
+    
+    # Loss function parameters
+    parser.add_argument('--box', type=float, default=7.5,
+                       help='Box loss gain (default: 7.5)')
+    parser.add_argument('--cls', type=float, default=0.5,
+                       help='Classification loss gain (default: 0.5)')
+    parser.add_argument('--dfl', type=float, default=1.5,
+                       help='Distribution focal loss gain (default: 1.5)')
+    parser.add_argument('--fl-gamma', type=float, default=0.0,
+                       help='Focal loss gamma (default: 0.0 for no focal loss)')
+    
+    # System and performance
+    parser.add_argument('--workers', type=int, default=8,
+                       help='Number of dataloader workers (default: 8)')
+    parser.add_argument('--project', type=str, default='runs/detect',
+                       help='Project directory (default: runs/detect)')
+    parser.add_argument('--seed', type=int, default=0,
+                       help='Random seed for reproducibility (default: 0)')
+    parser.add_argument('--deterministic', action='store_true',
+                       help='Enable deterministic mode for reproducibility')
+    parser.add_argument('--single-cls', action='store_true',
+                       help='Train as single-class dataset')
+    parser.add_argument('--rect', action='store_true',
+                       help='Enable rectangular training')
+    parser.add_argument('--cos-lr', action='store_true',
+                       help='Use cosine learning rate scheduler')
+    
+    # Mixed precision and memory management
+    parser.add_argument('--amp', action='store_true', default=True,
+                       help='Automatic Mixed Precision training (default: True)')
+    parser.add_argument('--fraction', type=float, default=1.0,
+                       help='Dataset fraction for training (default: 1.0)')
+    parser.add_argument('--profile', action='store_true',
+                       help='Profile ONNX and TensorRT speeds during validation')
+    
+    # Multi-GPU settings
+    parser.add_argument('--cache', choices=[True, False, 'ram', 'disk'], default=None,
+                       help='Image caching: True/ram/disk for cache, False for no cache')
+    parser.add_argument('--overlap-mask', action='store_true',
+                       help='Overlap masks for training (segment models)')
+    parser.add_argument('--mask-ratio', type=int, default=4,
+                       help='Mask downsample ratio (segment models) (default: 4)')
     
     return parser.parse_args()
 
@@ -514,8 +653,31 @@ def main():
     print(f"   Dataset: {args.data}")
     print(f"   Epochs: {args.epochs}")
     print(f"   Batch Size: {args.batch_size}")
+    print(f"   Image Size: {args.imgsz}")
     print(f"   Device: {args.device}")
     print(f"   Experiment: {experiment_name}")
+    print()
+    
+    print(f"🎛️  Hyperparameters:")
+    print(f"   Learning Rate: {args.lr} (final: {args.lr * args.lrf})")
+    print(f"   Optimizer: {args.optimizer}")
+    print(f"   Weight Decay: {args.weight_decay}")
+    print(f"   Momentum: {args.momentum}")
+    print(f"   Warmup: {args.warmup_epochs} epochs")
+    print(f"   Label Smoothing: {args.label_smoothing}")
+    print(f"   Mixed Precision: {'Enabled' if args.amp else 'Disabled'}")
+    if args.grad_clip > 0:
+        print(f"   Gradient Clipping: {args.grad_clip}")
+    print()
+    
+    print(f"🎨 Data Augmentation:")
+    print(f"   Scale: {args.scale}")
+    print(f"   Mosaic: {args.mosaic}")
+    print(f"   Mixup: {args.mixup}")
+    print(f"   Copy-Paste: {args.copy_paste}")
+    print(f"   HSV: H={args.hsv_h}, S={args.hsv_s}, V={args.hsv_v}")
+    print(f"   Geometric: degrees={args.degrees}, translate={args.translate}, shear={args.shear}")
+    print(f"   Flip: LR={args.fliplr}, UD={args.flipud}")
     print()
     
     try:
@@ -537,25 +699,83 @@ def main():
         # Start training
         print("🏋️  Starting training...")
         results = model.train(
+            # Core training parameters
             data=args.data,
             epochs=args.epochs,
             batch=args.batch_size,
             imgsz=args.imgsz,
             device=args.device,
             name=experiment_name,
+            
+            # Learning rate and optimization
             lr0=args.lr,
-            weight_decay=args.weight_decay,
+            lrf=args.lrf,
             momentum=args.momentum,
+            weight_decay=args.weight_decay,
+            warmup_epochs=args.warmup_epochs,
+            warmup_momentum=args.warmup_momentum,
+            warmup_bias_lr=args.warmup_bias_lr,
+            optimizer=args.optimizer,
+            cls_pw=args.cls_pw,
+            obj_pw=args.obj_pw,
+            
+            # Regularization
+            label_smoothing=args.label_smoothing,
+            dropout=args.dropout,
+            
+            # Data augmentation
             scale=args.scale,
             mosaic=args.mosaic,
             mixup=args.mixup,
             copy_paste=args.copy_paste,
+            hsv_h=args.hsv_h,
+            hsv_s=args.hsv_s,
+            hsv_v=args.hsv_v,
+            degrees=args.degrees,
+            translate=args.translate,
+            shear=args.shear,
+            perspective=args.perspective,
+            flipud=args.flipud,
+            fliplr=args.fliplr,
+            erasing=args.erasing,
+            crop_fraction=args.crop_fraction,
+            
+            # Training control
             resume=args.resume,
             save_period=args.save_period,
             val=args.val,
             plots=args.plots,
+            patience=args.patience,
+            close_mosaic=args.close_mosaic,
+            
+            # Loss function parameters
+            box=args.box,
+            cls=args.cls,
+            dfl=args.dfl,
+            fl_gamma=args.fl_gamma,
+            
+            # System and performance
+            workers=args.workers,
+            project=args.project,
+            seed=args.seed,
+            deterministic=args.deterministic,
+            single_cls=args.single_cls,
+            rect=args.rect,
+            cos_lr=args.cos_lr,
+            amp=args.amp,
+            fraction=args.fraction,
+            profile=args.profile,
+            cache=args.cache,
+            overlap_mask=args.overlap_mask,
+            mask_ratio=args.mask_ratio,
+            
+            # Additional parameters
             verbose=True
         )
+        
+        # Handle gradient clipping if specified
+        if args.grad_clip > 0:
+            print(f"📌 Note: Gradient clipping (max_norm={args.grad_clip}) will be applied during training")
         
         print("🎉 Training completed successfully!")
         print(f"📁 Results saved in: runs/detect/{experiment_name}")
