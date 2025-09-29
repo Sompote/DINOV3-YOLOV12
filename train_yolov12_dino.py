@@ -14,6 +14,9 @@ Basic Usage Examples:
 
     # Dual integration (P3+P4 backbone) - High performance  
     python train_yolov12_dino.py --data coco.yaml --yolo-size l --dino-variant vitl16 --integration dual --epochs 200
+    
+    # DualP0P3 integration (P0+P3) - Optimized dual enhancement
+    python train_yolov12_dino.py --data coco.yaml --yolo-size m --dino-variant vitb16 --integration dualp0p3 --epochs 150
 
 Advanced Hyperparameter Examples:
     # Custom learning rate and optimizer
@@ -132,6 +135,13 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
         print("   🏆 Maximum enhancement, ultimate performance")
         config_name = f'yolov12{yolo_size}-triple-dino{dinoversion}-{dino_variant}.yaml'
         
+    elif integration == 'dualp0p3':
+        # DualP0P3 = P0+P3 dual integration
+        print("🎯 Using DINO3 DualP0P3 Integration (P0+P3 Dual)")
+        print("   📐 DINO3Preprocessor -> YOLOv12 -> DINO3(P3)")
+        print("   ⚡ Optimized dual enhancement, P0 input + P3 backbone")
+        config_name = f'yolov12{yolo_size}-dualp0p3-dino{dinoversion}-{dino_variant}.yaml'
+        
     else:
         # This should not happen with proper validation, but provide fallback
         print("⚠️  No integration type specified with DINO. This should be caught by validation.")
@@ -153,6 +163,22 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
             fallback_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-vitb16-dual.yaml'
             if Path(fallback_config).exists():
                 print(f"   📄 Using dual config as triple fallback: yolov12{yolo_size}-dino3-vitb16-dual.yaml")
+                return fallback_config
+        elif integration == 'dualp0p3':
+            # For dualp0p3 integration, try specific dualp0p3 configs first
+            dualp0p3_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dualp0p3-dino{dinoversion}-{dino_variant}.yaml'
+            if Path(dualp0p3_config).exists():
+                print(f"   📄 Using specific dualp0p3 config: yolov12{yolo_size}-dualp0p3-dino{dinoversion}-{dino_variant}.yaml")
+                return dualp0p3_config
+            # Try fallback with matching variant first
+            fallback_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-{dino_variant}-dual.yaml'
+            if Path(fallback_config).exists():
+                print(f"   📄 Using variant-matched dual config as dualp0p3 fallback: yolov12{yolo_size}-dino3-{dino_variant}-dual.yaml")
+                return fallback_config
+            # Last resort: vitb16 dual config
+            fallback_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-vitb16-dual.yaml'
+            if Path(fallback_config).exists():
+                print(f"   📄 Using vitb16 dual config as dualp0p3 fallback: yolov12{yolo_size}-dino3-vitb16-dual.yaml")
                 return fallback_config
         
         # Use scale-corrected configs for better channel handling
@@ -188,6 +214,9 @@ def get_recommended_batch_size(yolo_size, has_dino=False, integration='single'):
         elif integration == 'triple':
             # Triple = P0+P3+P4 all levels, highest computational load
             batch = max(batch // 4, 1)
+        elif integration == 'dualp0p3':
+            # DualP0P3 = P0+P3 dual integration, moderate computational load
+            batch = max(batch // 3, 2)
         else:
             batch = max(batch // 2, 4)
     
@@ -219,8 +248,8 @@ def parse_arguments():
                                'convnext_tiny', 'convnext_small', 'convnext_base', 'convnext_large'],
                        help='DINOv3 model variant')
     parser.add_argument('--integration', type=str, default=None,
-                       choices=['single', 'dual', 'triple'],
-                       help='Integration type: single (P0 input), dual (P3+P4 backbone), triple (P0+P3+P4 all levels). Required when using DINO')
+                       choices=['single', 'dual', 'triple', 'dualp0p3'],
+                       help='Integration type: single (P0 input), dual (P3+P4 backbone), triple (P0+P3+P4 all levels), dualp0p3 (P0+P3 dual integration). Required when using DINO')
     parser.add_argument('--dino-input', type=str, default=None,
                        help='Custom DINO model input/path (overrides --dino-variant)')
     
@@ -424,6 +453,9 @@ def create_experiment_name(args):
         elif args.integration == 'triple':
             # Triple = P0+P3+P4 all levels
             name = f"yolov12{args.yolo_size}-dino{args.dinoversion}-{variant}-p0p3p4"
+        elif args.integration == 'dualp0p3':
+            # DualP0P3 = P0+P3 dual integration
+            name = f"yolov12{args.yolo_size}-dino{args.dinoversion}-{variant}-dualp0p3"
         else:
             # Fallback
             name = f"yolov12{args.yolo_size}-dino{args.dinoversion}-{variant}-{args.integration}"
