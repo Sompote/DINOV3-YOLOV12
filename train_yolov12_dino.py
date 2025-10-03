@@ -252,6 +252,8 @@ def parse_arguments():
                        help='Integration type: single (P0 input), dual (P3+P4 backbone), triple (P0+P3+P4 all levels), dualp0p3 (P0+P3 dual integration). Required when using DINO')
     parser.add_argument('--dino-input', type=str, default=None,
                        help='Custom DINO model input/path (overrides --dino-variant)')
+    parser.add_argument('--pretrain', type=str, default=None,
+                       help='Pretrained YOLO checkpoint to load (.pt file)')
     
     # Training parameters
     parser.add_argument('--epochs', type=int, default=None,
@@ -428,6 +430,12 @@ def validate_arguments(args):
     # Handle dino_input logic
     if args.dino_input:
         LOGGER.info(f"Using custom DINO input: {args.dino_input}")
+    
+    # Handle pretrain checkpoint logic
+    if args.pretrain:
+        if not os.path.exists(args.pretrain):
+            raise FileNotFoundError(f"Pretrained checkpoint not found: {args.pretrain}")
+        LOGGER.info(f"Using pretrained checkpoint: {args.pretrain}")
     
     # Check GPU availability
     if not torch.cuda.is_available() and args.device != 'cpu':
@@ -720,7 +728,13 @@ def main():
         
         # Load model
         print(f"🔧 Loading model: {model_config}")
-        model = YOLO(model_config)
+        if args.pretrain:
+            print(f"🔧 Loading from pretrained checkpoint: {args.pretrain}")
+            model = YOLO(args.pretrain)
+            # Load the config for architecture, but initialize with pretrained weights
+            model.model.yaml_file = model_config
+        else:
+            model = YOLO(model_config)
         
         # Note: DINO freezing is now handled automatically in the YAML config
         # The freeze_backbone parameter is set during config modification

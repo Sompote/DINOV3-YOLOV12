@@ -408,16 +408,16 @@ python train_yolov12_dino.py --data data.yaml --yolo-size s
 | **Triple (P0+P3+P4 All)** 🚀 | `--dino-variant vitb16 --integration triple` | DINOv3 (auto) | Maximum enhancement, all levels |
 | **Legacy Support** 🔄 | `--dinoversion 2 --dino-variant vitb16 --integration single` | DINOv2 (explicit) | Existing workflows |
 
-## 🔥 **`--dino-input` Custom Model Support - FULLY WORKING**
+## 🔥 **Custom Model Loading - `--dino-input` vs `--pretrain`**
 
-**Load ANY DINO model** with the `--dino-input` parameter - **now fully implemented and tested!**
+**Clear distinction between DINO model loading and checkpoint resuming:**
 
-### 🎯 **Local Weight Files - BREAKTHROUGH FEATURE** 
+### 🎯 **`--dino-input`: Custom DINO Models for Enhancement** 
 
-**✅ WORKING**: Local weight files are now fully supported! Load your own trained DINO models directly:
+Use `--dino-input` to load **custom DINO models** for backbone enhancement:
 
 ```bash
-# 🏗️ Single Integration with Custom Weights (P0 Input)
+# 🏗️ Single Integration with Custom DINO Weights (P0 Input)
 python train_yolov12_dino.py \
     --data /path/to/your/data.yaml \
     --yolo-size s \
@@ -426,26 +426,48 @@ python train_yolov12_dino.py \
     --integration single \
     --epochs 100
 
-# 🎪 Dual Integration with Custom Weights (P3+P4 Backbone) - TESTED
+# 🎪 Dual Integration with Custom DINO Weights (P3+P4 Backbone)
 python train_yolov12_dino.py \
     --data /path/to/your/data.yaml \
     --yolo-size l \
     --dinoversion 3 \
-    --dino-input /path/to/your/segment_defect.pt \
+    --dino-input /path/to/your/dino_backbone.pt \
     --integration dual \
     --epochs 200
+```
 
-# 🚀 Triple Integration with Custom Weights (P0+P3+P4 All Levels)
+### 🔄 **`--pretrain`: Resume Training from YOLO Checkpoints**
+
+Use `--pretrain` to load **pretrained YOLO checkpoints** for continuing training:
+
+```bash
+# ✅ Resume training from a YOLO checkpoint
 python train_yolov12_dino.py \
     --data /path/to/your/data.yaml \
     --yolo-size l \
-    --dinoversion 3 \
-    --dino-input ./your_fine_tuned_dino.safetensors \
+    --pretrain /path/to/your/last.pt \
     --integration triple \
-    --epochs 150
+    --epochs 400 \
+    --name cont_training
+
+# ✅ Continue training with different configuration
+python train_yolov12_dino.py \
+    --data /path/to/your/data.yaml \
+    --yolo-size l \
+    --pretrain /Users/Downloads/checkpoint.pt \
+    --epochs 200 \
+    --batch-size 8 \
+    --name resumed_training
 ```
 
-### 🧬 **Official DINOv3 Models (Standard)**
+### 🎪 **Key Differences**
+
+| Parameter | Purpose | Input Type | Use Case |
+|:----------|:--------|:-----------|:---------|
+| `--dino-input` | Load custom DINO models | DINO backbone weights (.pth, .pt) | Enhanced vision features |
+| `--pretrain` | Resume YOLO training | YOLO checkpoint (.pt) | Continue training from checkpoint |
+
+### 🧬 **Standard DINOv3 Models**
 ```bash
 # Standard ViT models with --dino-variant (alternative to --dino-input)
 python train_yolov12_dino.py \
@@ -455,16 +477,8 @@ python train_yolov12_dino.py \
     --dino-variant vitb16 \
     --integration single \
     --epochs 100
-
-# High-end model using --dino-input syntax
-python train_yolov12_dino.py \
-    --data coco.yaml \
-    --yolo-size l \
-    --dinoversion 3 \
-    --dino-input dinov3_vith16_plus \
-    --integration dual \
-    --epochs 200
 ```
+
 
 ### 🎪 **All Supported Input Types**
 
