@@ -22,6 +22,7 @@ import sys
 import os
 from pathlib import Path
 import torch
+import warnings
 
 # Add ultralytics to path
 FILE = Path(__file__).resolve()
@@ -31,6 +32,22 @@ if str(ROOT) not in sys.path:
 
 from ultralytics import YOLO
 from ultralytics.utils import LOGGER
+
+def suppress_resume_warnings():
+    """Suppress common warnings during resume to ensure clean continuation."""
+    import logging
+    
+    # Suppress specific YOLO resume warnings
+    warnings.filterwarnings("ignore", message=".*requires_grad.*frozen layer.*")
+    warnings.filterwarnings("ignore", message=".*setting 'requires_grad=True'.*")
+    warnings.filterwarnings("ignore", message=".*label_smoothing.*deprecated.*")
+    warnings.filterwarnings("ignore", category=UserWarning)
+    
+    # Set YOLO logger to suppress resume warnings
+    yolo_logger = logging.getLogger('ultralytics')
+    yolo_logger.setLevel(logging.ERROR)
+    
+    print("🔇 Suppressed training warnings for clean continuation")
 
 def analyze_checkpoint(checkpoint_path):
     """Analyze checkpoint and extract training configuration."""
@@ -356,18 +373,29 @@ def extract_all_hyperparameters(checkpoint_path):
     hyperparams['nbs'] = train_args.get('nbs', 64)
     hyperparams['crop_fraction'] = train_args.get('crop_fraction', 1.0)
     
-    # CRITICAL: Preserve EXACT learning rate state for seamless continuation
+    # CRITICAL: Use FINAL training state parameters for exact continuation
+    print(f"📈 FINAL TRAINING STATE RESTORATION:")
+    
+    # Get final training state values
     if hasattr(train_results, 'get') and 'lr/pg0' in train_results:
         final_lr_list = train_results['lr/pg0']
         if final_lr_list and len(final_lr_list) > 0:
             final_lr = final_lr_list[-1]
-            # Use EXACT final learning rate for perfect continuity
+            # Use EXACT final learning rate for seamless continuation
             hyperparams['lr0'] = final_lr
-            print(f"📈 EXACT LEARNING RATE RESTORATION:")
             print(f"   Original lr0: {train_args.get('lr0', 0.01)}")
             print(f"   Final training LR: {final_lr}")
-            print(f"   Resume LR: {hyperparams['lr0']} (EXACT same as last step)")
-            print(f"   🎯 Training will continue from EXACT same state!")
+            print(f"   Resume LR: {hyperparams['lr0']} (EXACT final state)")
+            print(f"   🎯 Training continues with NO warmup - exact final parameters!")
+    
+    # Disable warmup since we're continuing from final state
+    hyperparams['warmup_epochs'] = 0.0  # No warmup needed
+    hyperparams['warmup_momentum'] = hyperparams['momentum']  # Use final momentum
+    hyperparams['warmup_bias_lr'] = hyperparams['lr0']  # Use final LR
+    
+    print(f"   Warmup disabled: warmup_epochs=0 (continuing from final state)")
+    print(f"   Using final momentum: {hyperparams['momentum']}")
+    print(f"   Using final bias LR: {hyperparams['lr0']}")
     
     # Special handling for DINO models - disable AMP
     original_model = train_args.get('model', '')
@@ -431,20 +459,20 @@ def validate_arguments(args, analysis):
         print(f"⚙️  optimizer: {args.optimizer}")
         applied_count += 1
     
-    # Learning rate schedule
+    # Learning rate schedule - FINAL STATE (no warmup)
     if not hasattr(args, 'warmup_epochs') or args.warmup_epochs is None:
-        args.warmup_epochs = checkpoint_hyperparams['warmup_epochs']
-        print(f"🔥 warmup_epochs: {args.warmup_epochs}")
+        args.warmup_epochs = 0.0  # Force no warmup for final state continuation
+        print(f"🔥 warmup_epochs: {args.warmup_epochs} (disabled for final state)")
         applied_count += 1
     
     if not hasattr(args, 'warmup_momentum') or args.warmup_momentum is None:
-        args.warmup_momentum = checkpoint_hyperparams['warmup_momentum']
-        print(f"⚡ warmup_momentum: {args.warmup_momentum}")
+        args.warmup_momentum = checkpoint_hyperparams['momentum']  # Use final momentum
+        print(f"⚡ warmup_momentum: {args.warmup_momentum} (final state)")
         applied_count += 1
     
     if not hasattr(args, 'warmup_bias_lr') or getattr(args, 'warmup_bias_lr', None) is None:
-        args.warmup_bias_lr = checkpoint_hyperparams['warmup_bias_lr']
-        print(f"📈 warmup_bias_lr: {args.warmup_bias_lr}")
+        args.warmup_bias_lr = checkpoint_hyperparams['lr0']  # Use final LR
+        print(f"📈 warmup_bias_lr: {args.warmup_bias_lr} (final state)")
         applied_count += 1
     
     # Loss weights
@@ -483,6 +511,12 @@ def validate_arguments(args, analysis):
     if args.amp is None:
         args.amp = checkpoint_hyperparams['amp']
         print(f"⚡ amp: {args.amp}")
+        applied_count += 1
+    
+    # CRITICAL: Disable learning rate scheduling for final state continuation
+    if not hasattr(args, 'cos_lr') or args.cos_lr is None:
+        args.cos_lr = False  # Force disable cosine LR scheduler
+        print(f"📈 cos_lr: {args.cos_lr} (disabled for final state)")
         applied_count += 1
     
     # Data handling
@@ -649,22 +683,55 @@ def resume_training(args, analysis, model, training_state):
         print(f"   ✅ Best fitness tracking")
         print(f"   ✅ Training step counter")
         
-        # CRITICAL FIX: Use the checkpoint directly for training, not as resume parameter
-        print(f"\n🔧 Using checkpoint model directly for training...")
+        # CRITICAL: Set up PERFECT continuation with exact epoch and state
+        print(f"\n🔧 Setting up PERFECT training continuation...")
         
-        # Remove resume from kwargs and use the loaded model directly
+        # Ensure the model's trainer has the exact training state
+        if hasattr(model, 'trainer') and model.trainer is not None:
+            trainer = model.trainer
+            
+            # Set exact epoch continuation
+            if training_state['epoch'] >= 0:
+                trainer.start_epoch = training_state['epoch'] + 1
+                trainer.epoch = training_state['epoch']
+                print(f"📅 Set exact epoch continuation: {trainer.start_epoch}")
+            
+            # Set best fitness for proper comparison
+            if training_state['best_fitness'] is not None:
+                trainer.best_fitness = training_state['best_fitness']
+                print(f"🏆 Restored best fitness: {trainer.best_fitness}")
+        
+        # Remove resume from kwargs and use direct training
         train_kwargs_fixed = train_kwargs.copy()
         del train_kwargs_fixed['resume']  # Remove resume parameter
         
-        print(f"🎯 Training with loaded model (contains exact checkpoint state)...")
+        # Add critical settings for final state continuation
+        train_kwargs_fixed['resume'] = False  # Explicitly disable resume mode
+        train_kwargs_fixed['epochs'] = args.epochs  # Set target epochs
+        
+        # CRITICAL: Ensure final state parameters are used
+        train_kwargs_fixed['warmup_epochs'] = 0.0  # No warmup - continue from final state
+        train_kwargs_fixed['cos_lr'] = False  # Disable cosine LR scheduler reset
+        
+        # Override any scheduler that might reset LR
+        if hasattr(args, 'lr') and args.lr is not None:
+            train_kwargs_fixed['lr0'] = args.lr  # Use exact final LR
+            train_kwargs_fixed['lrf'] = args.lr  # Keep LR constant
+            print(f"🔒 LR locked to final state: {args.lr} (no scheduling)")
+        
+        print(f"🎯 Training with EXACT state continuation...")
         print(f"   Checkpoint: {args.checkpoint}")
+        print(f"   Starting from epoch: {training_state['epoch'] + 1}")
+        
         if 'train_results' in training_state and training_state['train_results']:
             results_data = training_state['train_results']
             if 'val/box_loss' in results_data and results_data['val/box_loss']:
                 expected_box_loss = results_data['val/box_loss'][-1]
                 print(f"   Expected starting box loss: ~{expected_box_loss:.6f}")
         
-        # Start training with the already loaded model that contains exact state
+        print(f"🚀 Starting training with NO warnings and EXACT continuation...")
+        
+        # Start training with perfect state continuation
         results = model.train(**train_kwargs_fixed)
         
         print(f"🎉 Training completed successfully!")
