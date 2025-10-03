@@ -460,9 +460,43 @@ python train_yolov12_dino.py \
     --name resumed_training
 ```
 
-### 🎯 **Resume DINO Training from Checkpoint**
+### 🔄 **Resume Training from Checkpoint - NEW: `train_resume.py`** 
 
-When resuming DINO training, you **MUST** specify the same DINO configuration to maintain architecture consistency:
+Use the dedicated `train_resume.py` script for proper checkpoint resuming with automatic configuration detection:
+
+```bash
+# ✅ RECOMMENDED: Use dedicated resume script (auto-detects everything)
+python train_resume.py \
+    --checkpoint /path/to/your/checkpoint.pt \
+    --epochs 400 \
+    --device 0,1
+
+# ✅ Resume with custom settings (data auto-detected from checkpoint)
+python train_resume.py \
+    --checkpoint /Users/model_weight/last.pt \
+    --epochs 200 \
+    --batch-size 32 \
+    --name resumed_training \
+    --device cpu
+
+# ✅ Resume with modified hyperparameters
+python train_resume.py \
+    --checkpoint /path/to/best.pt \
+    --lr 0.001 \
+    --epochs 100 \
+    --name fine_tuned_training
+```
+
+**🎯 Key Features of `train_resume.py`:**
+- **🔍 Auto-detects**: Dataset, batch size, DINO configuration from checkpoint
+- **🧬 Smart Architecture**: Automatically handles DINO vs pure YOLO models  
+- **❄️ Proper Freezing**: Maintains DINO layer freezing state
+- **⚡ Built-in Loading**: Uses YOLO's proven checkpoint loading mechanism
+- **📊 Configuration Analysis**: Shows detailed checkpoint information
+
+### 🎯 **Resume DINO Training from Checkpoint (Legacy Method)**
+
+For manual control, you can still use the main training script, but you **MUST** specify the same DINO configuration:
 
 ```bash
 # ✅ Resume DINO training - specify DINO arguments to match checkpoint
@@ -487,7 +521,14 @@ python train_yolov12_dino.py \
     # Missing DINO arguments causes pure YOLOv12 mode
 ```
 
-**⚠️ Important:** When resuming DINO training, always include the original DINO configuration (`--dinoversion`, `--dino-variant`, `--integration`) to prevent architecture conflicts.
+**⚠️ Important:** When using the legacy method, always include the original DINO configuration (`--dinoversion`, `--dino-variant`, `--integration`) to prevent architecture conflicts.
+
+### 📋 **Resume Training Comparison**
+
+| Method | Auto-Detection | Data Required | DINO Config Required | Best For |
+|:-------|:---------------|:--------------|:-------------------|:---------|
+| **`train_resume.py`** ✅ | **Full auto** | ❌ No | ❌ No | **Recommended - Simple & Safe** |
+| **`train_yolov12_dino.py --pretrain`** | Manual | ✅ Yes | ✅ Yes | Manual control & custom settings |
 
 ### 🎪 **Key Differences**
 

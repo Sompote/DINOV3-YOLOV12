@@ -374,8 +374,8 @@ def parse_arguments():
                        help='Use cosine learning rate scheduler')
     
     # Mixed precision and memory management
-    parser.add_argument('--amp', action='store_true', default=True,
-                       help='Automatic Mixed Precision training (default: True)')
+    parser.add_argument('--amp', action='store_true', default=None,
+                       help='Automatic Mixed Precision training (auto-determined based on model type)')
     parser.add_argument('--fraction', type=float, default=1.0,
                        help='Dataset fraction for training (default: 1.0)')
     parser.add_argument('--profile', action='store_true',
@@ -486,6 +486,15 @@ def setup_training_parameters(args):
     if args.epochs is None:
         args.epochs = get_recommended_epochs(has_dino)
         LOGGER.info(f"Auto-determined epochs: {args.epochs}")
+    
+    # Auto-determine AMP setting if not specified
+    if args.amp is None:
+        if has_dino:
+            args.amp = False  # Disable AMP for DINO models to avoid memory issues
+            LOGGER.info(f"Auto-determined AMP: False (disabled for DINO models)")
+        else:
+            args.amp = True   # Enable AMP for pure YOLO models
+            LOGGER.info(f"Auto-determined AMP: True (enabled for pure YOLO)")
     
     # Adjust augmentation parameters for different model sizes
     if args.yolo_size in ['s', 'm', 'l', 'x']:
@@ -734,99 +743,38 @@ def main():
         if args.pretrain:
             print(f"🔧 Loading from pretrained checkpoint: {args.pretrain}")
             
-            # CRITICAL: Extract original architecture from checkpoint
-            print(f"🔍 Extracting original architecture from checkpoint...")
-            checkpoint = torch.load(args.pretrain, map_location='cpu')
+            # CRITICAL FIX: Use YOLO's built-in checkpoint loading
+            print(f"🔧 Using YOLO's built-in checkpoint loading for proper resuming...")
+            model = YOLO(args.pretrain)
             
-            # Get the original config that was used to train the checkpoint
+            # Verify the model loaded properly
+            checkpoint = torch.load(args.pretrain, map_location='cpu')
+            print(f"✅ Loaded model directly from checkpoint")
+            
             if 'train_args' in checkpoint:
                 original_config = checkpoint['train_args'].get('model', None)
-                if original_config and Path(original_config).exists():
-                    print(f"✅ Found original config in checkpoint: {original_config}")
-                    print(f"🔧 Using EXACT checkpoint architecture instead of generated config")
-                    model_config = original_config
-                else:
-                    print(f"⚠️  Original config not found or doesn't exist: {original_config}")
-                    print(f"🔧 Falling back to generated config: {model_config}")
-            else:
-                print(f"⚠️  No train_args in checkpoint, using generated config")
+                print(f"📄 Original config: {original_config}")
             
-            # Create model from the correct architecture
-            print(f"🔧 Creating model from: {model_config}")
-            model = YOLO(model_config)
-            
-            # Load weights with validation
-            print(f"🔍 Loading checkpoint weights...")
-            
-            # Extract model weights (prefer EMA if available)
-            if 'ema' in checkpoint and checkpoint['ema'] is not None:
-                ckpt_model = checkpoint['ema']
-                print(f"📊 Using EMA weights from checkpoint")
-            elif 'model' in checkpoint:
-                ckpt_model = checkpoint['model']
-                print(f"📊 Using model weights from checkpoint")
-            else:
-                raise ValueError("No model weights found in checkpoint")
-            
-            # Get state dicts for validation
-            if hasattr(ckpt_model, 'state_dict'):
-                ckpt_state = ckpt_model.state_dict()
-            elif isinstance(ckpt_model, dict):
-                ckpt_state = ckpt_model
-            else:
-                raise ValueError("Cannot extract state dict from checkpoint")
-            
-            model_state = model.model.state_dict()
-            
-            # Validate architecture match
-            ckpt_keys = set(ckpt_state.keys())
-            model_keys = set(model_state.keys())
-            exact_matches = sum(1 for k in model_keys if k in ckpt_keys and model_state[k].shape == ckpt_state[k].shape)
-            compatibility_score = exact_matches / len(model_keys)
-            
-            print(f"📊 Architecture compatibility: {compatibility_score:.1%} ({exact_matches}/{len(model_keys)} weights)")
-            
-            if compatibility_score < 0.99:
-                print(f"❌ CRITICAL: Low compatibility score ({compatibility_score:.1%})")
-                print(f"   This indicates architecture mismatch!")
-                
-                missing_keys = model_keys - ckpt_keys
-                extra_keys = ckpt_keys - model_keys
-                shape_mismatches = []
-                
-                for key in model_keys & ckpt_keys:
-                    if model_state[key].shape != ckpt_state[key].shape:
-                        shape_mismatches.append(f"{key}: {model_state[key].shape} vs {ckpt_state[key].shape}")
-                
-                if missing_keys:
-                    print(f"   Missing {len(missing_keys)} keys:")
-                    for key in list(missing_keys)[:3]:
-                        print(f"     - {key}")
-                if shape_mismatches:
-                    print(f"   Shape mismatches: {len(shape_mismatches)}")
-                    for mismatch in shape_mismatches[:3]:
-                        print(f"     - {mismatch}")
-                
-                raise ValueError("Architecture mismatch prevents proper weight loading!")
-            
-            # Load exact matching weights
-            matched_weights = {}
-            for name, param in model_state.items():
-                if name in ckpt_state and param.shape == ckpt_state[name].shape:
-                    matched_weights[name] = ckpt_state[name]
-            
-            # Load weights
-            incompatible_keys = model.model.load_state_dict(matched_weights, strict=False)
-            
-            print(f"✅ Successfully loaded {len(matched_weights)}/{len(model_state)} weights ({len(matched_weights)/len(model_state)*100:.1f}%)")
-            
-            # Load training state
             if 'epoch' in checkpoint:
                 print(f"📅 Checkpoint from epoch: {checkpoint['epoch']}")
             if 'best_fitness' in checkpoint and checkpoint['best_fitness'] is not None:
                 print(f"🏆 Checkpoint best fitness: {checkpoint['best_fitness']:.4f}")
             
-            print(f"🎯 Checkpoint resuming ready - model should continue from trained state!")
+            # Verify model parameters
+            total_params = sum(p.numel() for p in model.model.parameters())
+            print(f"📊 Model has {total_params:,} total parameters")
+            
+            # Re-freeze DINO layers if they should be frozen
+            if not args.unfreeze_dino:
+                print(f"🧊 Re-freezing DINO layers to maintain frozen state...")
+                frozen_count = 0
+                for name, param in model.model.named_parameters():
+                    if 'dino_model' in name:
+                        param.requires_grad = False
+                        frozen_count += 1
+                print(f"🧊 Frozen {frozen_count} DINO parameters")
+            
+            print(f"🎯 YOLO built-in checkpoint loading complete!")
                 
         else:
             print(f"🔧 Loading model: {model_config}")
