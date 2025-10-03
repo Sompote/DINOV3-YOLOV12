@@ -717,23 +717,28 @@ def main():
     print()
     
     try:
-        # Modify config for custom DINO input if needed
+        # Modify config for custom DINO input if needed (but NOT when using --pretrain)
         original_config = model_config
         temp_config_path = None
-        if args.dino_input:
+        if args.dino_input and not args.pretrain:
             print(f"Using custom DINO input: {args.dino_input}")
             temp_config_path = modify_yaml_config_for_custom_dino(model_config, args.dino_input, args.yolo_size, args.unfreeze_dino, args.dinoversion)
             if temp_config_path != model_config:
                 model_config = temp_config_path
+        elif args.pretrain and args.dino_input:
+            print(f"⚠️  --dino-input ignored when using --pretrain (checkpoint architecture takes precedence)")
+        elif args.pretrain:
+            print(f"🔧 Using checkpoint's preserved DINO configuration")
         
         # Load model
-        print(f"🔧 Loading model: {model_config}")
         if args.pretrain:
             print(f"🔧 Loading from pretrained checkpoint: {args.pretrain}")
+            print(f"🔧 Using checkpoint's original architecture (not generating new config)")
             model = YOLO(args.pretrain)
-            # Load the config for architecture, but initialize with pretrained weights
-            model.model.yaml_file = model_config
+            # DO NOT overwrite yaml_file - keep the original architecture from checkpoint
+            print(f"🔧 Checkpoint architecture preserved: {getattr(model.model, 'yaml_file', 'unknown')}")
         else:
+            print(f"🔧 Loading model: {model_config}")
             model = YOLO(model_config)
         
         # Note: DINO freezing is now handled automatically in the YAML config
