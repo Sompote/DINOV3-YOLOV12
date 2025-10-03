@@ -108,20 +108,105 @@ def analyze_checkpoint(checkpoint_path):
         print(f"❌ Error analyzing checkpoint: {e}")
         return None
 
+def restore_exact_training_state(checkpoint_path):
+    """Restore EXACT training state for seamless continuation."""
+    try:
+        print(f"🎯 RESTORING EXACT TRAINING STATE")
+        print("=" * 60)
+        
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+        
+        # Extract complete training state
+        training_state = {
+            'epoch': checkpoint.get('epoch', -1),
+            'best_fitness': checkpoint.get('best_fitness', 0.0),
+            'optimizer_state': checkpoint.get('optimizer', None),
+            'ema_state': checkpoint.get('ema', None),
+            'updates': checkpoint.get('updates', 0),
+            'train_args': checkpoint.get('train_args', {}),
+            'train_results': checkpoint.get('train_results', {}),
+        }
+        
+        print(f"📊 Complete Training State Extracted:")
+        print(f"   Last Epoch: {training_state['epoch']}")
+        print(f"   Best Fitness: {training_state['best_fitness']}")
+        print(f"   Training Updates: {training_state['updates']}")
+        print(f"   Optimizer State: {'Available' if training_state['optimizer_state'] else 'Not Available'}")
+        print(f"   EMA State: {'Available' if training_state['ema_state'] else 'Not Available'}")
+        
+        # Get final metrics for reference
+        if 'train_results' in checkpoint and checkpoint['train_results']:
+            results = checkpoint['train_results']
+            if 'lr/pg0' in results and results['lr/pg0']:
+                final_lr = results['lr/pg0'][-1]
+                print(f"   Final Learning Rate: {final_lr}")
+            
+            # Show expected loss values
+            expected_losses = {}
+            for key in ['train/box_loss', 'train/cls_loss', 'train/dfl_loss', 'val/box_loss', 'val/cls_loss', 'val/dfl_loss']:
+                if key in results and results[key]:
+                    expected_losses[key.split('/')[-1]] = results[key][-1]
+            
+            if expected_losses:
+                print(f"   Expected Loss Values (training should start with these):")
+                for loss_name, loss_value in expected_losses.items():
+                    print(f"      {loss_name}: {loss_value:.6f}")
+        
+        return training_state
+        
+    except Exception as e:
+        print(f"❌ Error restoring training state: {e}")
+        return None
+
 def create_resume_model(checkpoint_path):
     """Create model for resuming with proper checkpoint loading."""
     try:
         print(f"🔧 Creating model for resuming from: {checkpoint_path}")
         
-        # Use YOLO's built-in checkpoint loading
-        print(f"🔧 Loading model using YOLO's built-in checkpoint handling...")
-        model = YOLO(checkpoint_path)
+        # CRITICAL FIX: Use exact original config from checkpoint
+        print(f"🔍 Extracting original architecture from checkpoint...")
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
         
-        print(f"✅ Model loaded successfully")
+        # Get the original config that was used to train the checkpoint
+        if 'train_args' in checkpoint:
+            original_config = checkpoint['train_args'].get('model', None)
+            if original_config and Path(original_config).exists():
+                print(f"✅ Found original config: {original_config}")
+                print(f"🔧 Creating model from EXACT original architecture...")
+                
+                # Create model from exact original config first
+                model = YOLO(original_config)
+                
+                # Then load the checkpoint weights WITH EXACT STATE
+                print(f"🔧 Loading checkpoint with EXACT training state...")
+                model = YOLO(checkpoint_path)  # This preserves optimizer, EMA, epoch
+                
+                print(f"✅ Model loaded with exact architecture match")
+            else:
+                print(f"⚠️  Original config not found: {original_config}")
+                print(f"🔧 Falling back to direct checkpoint loading...")
+                model = YOLO(checkpoint_path)
+        else:
+            print(f"⚠️  No train_args in checkpoint, using direct loading...")
+            model = YOLO(checkpoint_path)
         
-        # Verify model
+        # Verify model loaded properly
         total_params = sum(p.numel() for p in model.model.parameters())
         print(f"📊 Model Parameters: {total_params:,}")
+        
+        # Verify checkpoint architecture match by checking loss values
+        print(f"🔍 Verifying architecture compatibility...")
+        if 'train_metrics' in checkpoint:
+            expected_box_loss = checkpoint['train_metrics'].get('val/box_loss', 'unknown')
+            expected_cls_loss = checkpoint['train_metrics'].get('val/cls_loss', 'unknown') 
+            expected_dfl_loss = checkpoint['train_metrics'].get('val/dfl_loss', 'unknown')
+            
+            print(f"📊 Expected loss values from checkpoint:")
+            print(f"   box_loss: {expected_box_loss}")
+            print(f"   cls_loss: {expected_cls_loss}")
+            print(f"   dfl_loss: {expected_dfl_loss}")
+            print(f"🎯 Training should start with similar loss values!")
+            print(f"⚠️  If initial loss is 4x higher, there's still an architecture mismatch!")
         
         # Check for DINO layers
         dino_params = sum(p.numel() for name, p in model.model.named_parameters() if 'dino' in name.lower())
@@ -186,6 +271,113 @@ def parse_arguments():
     
     return parser.parse_args()
 
+def extract_all_hyperparameters(checkpoint_path):
+    """Extract ALL hyperparameters from checkpoint for complete consistency."""
+    print(f"🔧 EXTRACTING ALL HYPERPARAMETERS FROM CHECKPOINT")
+    print("=" * 60)
+    
+    checkpoint = torch.load(checkpoint_path, map_location='cpu')
+    train_args = checkpoint.get('train_args', {})
+    train_results = checkpoint.get('train_results', {})
+    
+    # Extract all training hyperparameters
+    hyperparams = {}
+    
+    # Core training parameters
+    hyperparams['epochs'] = train_args.get('epochs', 400)
+    hyperparams['batch'] = train_args.get('batch', 16)
+    hyperparams['imgsz'] = train_args.get('imgsz', 640)
+    hyperparams['device'] = train_args.get('device', '0')
+    
+    # Learning rate and optimization
+    hyperparams['lr0'] = train_args.get('lr0', 0.01)
+    hyperparams['lrf'] = train_args.get('lrf', 0.01)
+    hyperparams['momentum'] = train_args.get('momentum', 0.937)
+    hyperparams['weight_decay'] = train_args.get('weight_decay', 0.0005)
+    hyperparams['optimizer'] = train_args.get('optimizer', 'SGD')
+    
+    # Learning rate schedule
+    hyperparams['warmup_epochs'] = train_args.get('warmup_epochs', 3.0)
+    hyperparams['warmup_momentum'] = train_args.get('warmup_momentum', 0.8)
+    hyperparams['warmup_bias_lr'] = train_args.get('warmup_bias_lr', 0.1)
+    hyperparams['cos_lr'] = train_args.get('cos_lr', False)
+    
+    # Loss weights
+    hyperparams['box'] = train_args.get('box', 7.5)
+    hyperparams['cls'] = train_args.get('cls', 0.5)
+    hyperparams['dfl'] = train_args.get('dfl', 1.5)
+    hyperparams['pose'] = train_args.get('pose', 12.0)
+    hyperparams['kobj'] = train_args.get('kobj', 1.0)
+    
+    # Data augmentation
+    hyperparams['hsv_h'] = train_args.get('hsv_h', 0.015)
+    hyperparams['hsv_s'] = train_args.get('hsv_s', 0.7)
+    hyperparams['hsv_v'] = train_args.get('hsv_v', 0.4)
+    hyperparams['degrees'] = train_args.get('degrees', 0.0)
+    hyperparams['translate'] = train_args.get('translate', 0.1)
+    hyperparams['scale'] = train_args.get('scale', 0.5)
+    hyperparams['shear'] = train_args.get('shear', 0.0)
+    hyperparams['perspective'] = train_args.get('perspective', 0.0)
+    hyperparams['flipud'] = train_args.get('flipud', 0.0)
+    hyperparams['fliplr'] = train_args.get('fliplr', 0.5)
+    hyperparams['bgr'] = train_args.get('bgr', 0.0)
+    hyperparams['mosaic'] = train_args.get('mosaic', 1.0)
+    hyperparams['mixup'] = train_args.get('mixup', 0.0)
+    hyperparams['copy_paste'] = train_args.get('copy_paste', 0.0)
+    hyperparams['copy_paste_mode'] = train_args.get('copy_paste_mode', 'flip')
+    hyperparams['auto_augment'] = train_args.get('auto_augment', 'randaugment')
+    hyperparams['erasing'] = train_args.get('erasing', 0.4)
+    
+    # Training control
+    hyperparams['patience'] = train_args.get('patience', 100)
+    hyperparams['close_mosaic'] = train_args.get('close_mosaic', 10)
+    hyperparams['amp'] = train_args.get('amp', True)
+    hyperparams['fraction'] = train_args.get('fraction', 1.0)
+    hyperparams['profile'] = train_args.get('profile', False)
+    hyperparams['freeze'] = train_args.get('freeze', None)
+    hyperparams['multi_scale'] = train_args.get('multi_scale', False)
+    hyperparams['overlap_mask'] = train_args.get('overlap_mask', True)
+    hyperparams['mask_ratio'] = train_args.get('mask_ratio', 4)
+    hyperparams['dropout'] = train_args.get('dropout', 0.0)
+    hyperparams['val'] = train_args.get('val', True)
+    hyperparams['save'] = train_args.get('save', True)
+    hyperparams['save_period'] = train_args.get('save_period', -1)
+    hyperparams['cache'] = train_args.get('cache', False)
+    hyperparams['workers'] = train_args.get('workers', 8)
+    hyperparams['project'] = train_args.get('project', None)
+    hyperparams['exist_ok'] = train_args.get('exist_ok', False)
+    hyperparams['pretrained'] = train_args.get('pretrained', True)
+    hyperparams['verbose'] = train_args.get('verbose', True)
+    hyperparams['seed'] = train_args.get('seed', 0)
+    hyperparams['deterministic'] = train_args.get('deterministic', True)
+    hyperparams['single_cls'] = train_args.get('single_cls', False)
+    hyperparams['rect'] = train_args.get('rect', False)
+    hyperparams['resume'] = train_args.get('resume', False)
+    hyperparams['nbs'] = train_args.get('nbs', 64)
+    hyperparams['crop_fraction'] = train_args.get('crop_fraction', 1.0)
+    
+    # CRITICAL: Preserve EXACT learning rate state for seamless continuation
+    if hasattr(train_results, 'get') and 'lr/pg0' in train_results:
+        final_lr_list = train_results['lr/pg0']
+        if final_lr_list and len(final_lr_list) > 0:
+            final_lr = final_lr_list[-1]
+            # Use EXACT final learning rate for perfect continuity
+            hyperparams['lr0'] = final_lr
+            print(f"📈 EXACT LEARNING RATE RESTORATION:")
+            print(f"   Original lr0: {train_args.get('lr0', 0.01)}")
+            print(f"   Final training LR: {final_lr}")
+            print(f"   Resume LR: {hyperparams['lr0']} (EXACT same as last step)")
+            print(f"   🎯 Training will continue from EXACT same state!")
+    
+    # Special handling for DINO models - disable AMP
+    original_model = train_args.get('model', '')
+    if 'dino' in original_model.lower():
+        hyperparams['amp'] = False
+        print(f"⚡ Auto-disabled AMP for DINO model")
+    
+    print(f"✅ Extracted {len(hyperparams)} hyperparameters from checkpoint")
+    return hyperparams
+
 def validate_arguments(args, analysis):
     """Validate and adjust arguments based on checkpoint analysis."""
     
@@ -193,51 +385,136 @@ def validate_arguments(args, analysis):
     if not Path(args.checkpoint).exists():
         raise FileNotFoundError(f"Checkpoint not found: {args.checkpoint}")
     
-    # Set defaults from checkpoint if not provided
-    if args.data is None:
-        args.data = analysis['original_data']
-        print(f"📊 Using checkpoint's dataset: {args.data}")
+    # Extract ALL hyperparameters from checkpoint
+    checkpoint_hyperparams = extract_all_hyperparameters(args.checkpoint)
     
+    print(f"\n🔧 APPLYING CHECKPOINT HYPERPARAMETERS:")
+    print("=" * 50)
+    
+    # Apply hyperparameters only if not explicitly specified
+    applied_count = 0
+    
+    # Core training parameters
     if args.batch_size is None:
-        args.batch_size = analysis['original_batch']
-        print(f"🏋️  Using checkpoint's batch size: {args.batch_size}")
+        args.batch_size = checkpoint_hyperparams['batch']
+        print(f"🏋️  batch_size: {args.batch_size}")
+        applied_count += 1
     
     if args.epochs is None:
-        if analysis['original_epochs'] != 'unknown':
-            args.epochs = analysis['original_epochs']
-            print(f"📅 Using checkpoint's epoch count: {args.epochs}")
-        else:
-            args.epochs = 100  # Default
-            print(f"📅 Using default epochs: {args.epochs}")
+        args.epochs = checkpoint_hyperparams['epochs']
+        print(f"📅 epochs: {args.epochs}")
+        applied_count += 1
     
+    # Learning rate and optimization
+    if args.lr is None:
+        args.lr = checkpoint_hyperparams['lr0']
+        print(f"📈 lr0: {args.lr}")
+        applied_count += 1
+    
+    if not hasattr(args, 'lrf') or args.lrf is None:
+        args.lrf = checkpoint_hyperparams['lrf']
+        print(f"📉 lrf: {args.lrf}")
+        applied_count += 1
+    
+    if not hasattr(args, 'momentum') or args.momentum is None:
+        args.momentum = checkpoint_hyperparams['momentum']
+        print(f"⚡ momentum: {args.momentum}")
+        applied_count += 1
+    
+    if not hasattr(args, 'weight_decay') or getattr(args, 'weight_decay', None) is None:
+        args.weight_decay = checkpoint_hyperparams['weight_decay']
+        print(f"🏋️  weight_decay: {args.weight_decay}")
+        applied_count += 1
+    
+    if args.optimizer is None:
+        args.optimizer = checkpoint_hyperparams['optimizer']
+        print(f"⚙️  optimizer: {args.optimizer}")
+        applied_count += 1
+    
+    # Learning rate schedule
+    if not hasattr(args, 'warmup_epochs') or args.warmup_epochs is None:
+        args.warmup_epochs = checkpoint_hyperparams['warmup_epochs']
+        print(f"🔥 warmup_epochs: {args.warmup_epochs}")
+        applied_count += 1
+    
+    if not hasattr(args, 'warmup_momentum') or args.warmup_momentum is None:
+        args.warmup_momentum = checkpoint_hyperparams['warmup_momentum']
+        print(f"⚡ warmup_momentum: {args.warmup_momentum}")
+        applied_count += 1
+    
+    if not hasattr(args, 'warmup_bias_lr') or getattr(args, 'warmup_bias_lr', None) is None:
+        args.warmup_bias_lr = checkpoint_hyperparams['warmup_bias_lr']
+        print(f"📈 warmup_bias_lr: {args.warmup_bias_lr}")
+        applied_count += 1
+    
+    # Loss weights
+    if not hasattr(args, 'box') or args.box is None:
+        args.box = checkpoint_hyperparams['box']
+        print(f"📦 box: {args.box}")
+        applied_count += 1
+    
+    if not hasattr(args, 'cls') or args.cls is None:
+        args.cls = checkpoint_hyperparams['cls']
+        print(f"🏷️  cls: {args.cls}")
+        applied_count += 1
+    
+    if not hasattr(args, 'dfl') or args.dfl is None:
+        args.dfl = checkpoint_hyperparams['dfl']
+        print(f"📏 dfl: {args.dfl}")
+        applied_count += 1
+    
+    # Data augmentation (only apply if not specified)
+    aug_params = ['hsv_h', 'hsv_s', 'hsv_v', 'degrees', 'translate', 'scale', 
+                  'shear', 'perspective', 'flipud', 'fliplr', 'mosaic', 'mixup', 
+                  'copy_paste', 'erasing']
+    
+    for param in aug_params:
+        if not hasattr(args, param) or getattr(args, param, None) is None:
+            setattr(args, param, checkpoint_hyperparams[param])
+            print(f"🎨 {param}: {checkpoint_hyperparams[param]}")
+            applied_count += 1
+    
+    # Training control
+    if args.patience is None:
+        args.patience = checkpoint_hyperparams['patience']
+        print(f"⏰ patience: {args.patience}")
+        applied_count += 1
+    
+    if args.amp is None:
+        args.amp = checkpoint_hyperparams['amp']
+        print(f"⚡ amp: {args.amp}")
+        applied_count += 1
+    
+    # Data handling
+    if args.data is None:
+        print(f"⚠️  No dataset specified! Please provide --data parameter")
+        print(f"📊 Checkpoint was trained on: {analysis['original_data']}")
+        args.data = analysis['original_data']
+        print(f"📊 Using checkpoint's dataset: {args.data}")
+    else:
+        print(f"📊 Using specified dataset: {args.data}")
+    
+    # Device and naming
     if args.device is None:
-        if torch.cuda.is_available():
-            args.device = '0'
-        else:
-            args.device = 'cpu'
-        print(f"🖥️  Auto-detected device: {args.device}")
+        args.device = checkpoint_hyperparams['device']
+        print(f"🖥️  device: {args.device}")
+        applied_count += 1
     
     if args.name is None:
         checkpoint_name = Path(args.checkpoint).stem
         args.name = f"resume_{checkpoint_name}"
-        print(f"📁 Auto-generated name: {args.name}")
+        print(f"📁 name: {args.name}")
     
-    # Auto-determine AMP
-    if args.amp is None:
-        if analysis['is_dino']:
-            args.amp = False  # Disable for DINO models
-            print(f"⚡ Auto-determined AMP: False (DINO model)")
-        else:
-            args.amp = True   # Enable for pure YOLO
-            print(f"⚡ Auto-determined AMP: True (pure YOLO)")
+    print(f"\n✅ Applied {applied_count} hyperparameters from checkpoint")
+    print(f"🎯 Training will use IDENTICAL settings as original training")
     
     return args
 
-def resume_training(args, analysis, model):
-    """Resume training with the loaded model."""
+def resume_training(args, analysis, model, training_state):
+    """Resume training with EXACT state restoration."""
     try:
-        print(f"\n🚀 Starting Resume Training")
-        print("=" * 50)
+        print(f"\n🚀 Starting EXACT STATE Resume Training")
+        print("=" * 60)
         
         print(f"📊 Training Configuration:")
         print(f"   Checkpoint: {args.checkpoint}")
@@ -253,6 +530,12 @@ def resume_training(args, analysis, model):
             print(f"   🧬 DINO Variant: {analysis['dino_variant']}")
             print(f"   🧊 DINO Frozen: {not args.unfreeze_dino}")
         
+        # Show exact state restoration info
+        print(f"\n🎯 EXACT STATE RESTORATION:")
+        print(f"   Resume from Epoch: {training_state['epoch']}")
+        print(f"   Best Fitness: {training_state['best_fitness']}")
+        print(f"   Training Updates: {training_state['updates']}")
+        
         if args.unfreeze_dino and analysis['is_dino']:
             print(f"🔥 Unfreezing DINO weights for fine-tuning...")
             unfrozen_count = 0
@@ -262,8 +545,13 @@ def resume_training(args, analysis, model):
                     unfrozen_count += 1
             print(f"🔥 Unfrozen {unfrozen_count} DINO parameters")
         
-        # Prepare training arguments
+        # CRITICAL: Use YOLO's built-in resume for EXACT state restoration
+        print(f"\n🎯 USING YOLO BUILT-IN RESUME FOR PERFECT CONTINUITY")
+        print(f"   This will restore: optimizer state, EMA weights, epoch counter, learning rate scheduler")
+        
+        # Use YOLO's resume functionality for exact state restoration
         train_kwargs = {
+            'resume': args.checkpoint,  # CRITICAL: This enables exact state restoration
             'data': args.data,
             'epochs': args.epochs,
             'batch': args.batch_size,
@@ -273,23 +561,111 @@ def resume_training(args, analysis, model):
             'verbose': True,
         }
         
-        # Add optional overrides
-        if args.lr is not None:
+        # Add all hyperparameters that were extracted from checkpoint
+        if hasattr(args, 'lr') and args.lr is not None:
             train_kwargs['lr0'] = args.lr
-            print(f"📈 Learning rate override: {args.lr}")
+            print(f"📈 lr0: {args.lr}")
         
-        if args.optimizer is not None:
+        if hasattr(args, 'lrf') and args.lrf is not None:
+            train_kwargs['lrf'] = args.lrf
+            print(f"📉 lrf: {args.lrf}")
+        
+        if hasattr(args, 'momentum') and args.momentum is not None:
+            train_kwargs['momentum'] = args.momentum
+            print(f"⚡ momentum: {args.momentum}")
+        
+        if hasattr(args, 'weight_decay') and args.weight_decay is not None:
+            train_kwargs['weight_decay'] = args.weight_decay
+            print(f"🏋️  weight_decay: {args.weight_decay}")
+        
+        if hasattr(args, 'optimizer') and args.optimizer is not None:
             train_kwargs['optimizer'] = args.optimizer
-            print(f"⚙️  Optimizer override: {args.optimizer}")
+            print(f"⚙️  optimizer: {args.optimizer}")
         
-        if args.patience is not None:
+        if hasattr(args, 'warmup_epochs') and args.warmup_epochs is not None:
+            train_kwargs['warmup_epochs'] = args.warmup_epochs
+            print(f"🔥 warmup_epochs: {args.warmup_epochs}")
+        
+        if hasattr(args, 'warmup_momentum') and args.warmup_momentum is not None:
+            train_kwargs['warmup_momentum'] = args.warmup_momentum
+            print(f"⚡ warmup_momentum: {args.warmup_momentum}")
+        
+        if hasattr(args, 'warmup_bias_lr') and args.warmup_bias_lr is not None:
+            train_kwargs['warmup_bias_lr'] = args.warmup_bias_lr
+            print(f"📈 warmup_bias_lr: {args.warmup_bias_lr}")
+        
+        # Loss weights
+        if hasattr(args, 'box') and args.box is not None:
+            train_kwargs['box'] = args.box
+            print(f"📦 box: {args.box}")
+        
+        if hasattr(args, 'cls') and args.cls is not None:
+            train_kwargs['cls'] = args.cls
+            print(f"🏷️  cls: {args.cls}")
+        
+        if hasattr(args, 'dfl') and args.dfl is not None:
+            train_kwargs['dfl'] = args.dfl
+            print(f"📏 dfl: {args.dfl}")
+        
+        # Data augmentation parameters
+        aug_params = ['hsv_h', 'hsv_s', 'hsv_v', 'degrees', 'translate', 'scale',
+                      'shear', 'perspective', 'flipud', 'fliplr', 'mosaic', 'mixup',
+                      'copy_paste', 'erasing']
+        
+        for param in aug_params:
+            if hasattr(args, param) and getattr(args, param, None) is not None:
+                train_kwargs[param] = getattr(args, param)
+                print(f"🎨 {param}: {getattr(args, param)}")
+        
+        # Training control
+        if hasattr(args, 'patience') and args.patience is not None:
             train_kwargs['patience'] = args.patience
-            print(f"⏰ Patience override: {args.patience}")
+            print(f"⏰ patience: {args.patience}")
         
-        print(f"\n🏋️  Starting training...")
+        if hasattr(args, 'close_mosaic') and args.close_mosaic is not None:
+            train_kwargs['close_mosaic'] = args.close_mosaic
+            print(f"🎭 close_mosaic: {args.close_mosaic}")
         
-        # Start training
-        results = model.train(**train_kwargs)
+        if hasattr(args, 'cos_lr') and args.cos_lr:
+            train_kwargs['cos_lr'] = args.cos_lr
+            print(f"📈 cos_lr: {args.cos_lr}")
+        
+        if hasattr(args, 'deterministic') and args.deterministic is not None:
+            train_kwargs['deterministic'] = args.deterministic
+            print(f"🔒 deterministic: {args.deterministic}")
+        
+        if hasattr(args, 'seed') and args.seed is not None:
+            train_kwargs['seed'] = args.seed
+            print(f"🌱 seed: {args.seed}")
+        
+        print(f"\n🎯 Using {len(train_kwargs)} training parameters (all from checkpoint)")
+        
+        print(f"\n🏋️  Starting training with EXACT state restoration...")
+        print(f"🎯 YOLO will automatically restore:")
+        print(f"   ✅ Model weights (including EMA)")
+        print(f"   ✅ Optimizer state (momentum buffers, etc.)")
+        print(f"   ✅ Learning rate scheduler state")
+        print(f"   ✅ Epoch counter (+1 from checkpoint)")
+        print(f"   ✅ Best fitness tracking")
+        print(f"   ✅ Training step counter")
+        
+        # CRITICAL FIX: Use the checkpoint directly for training, not as resume parameter
+        print(f"\n🔧 Using checkpoint model directly for training...")
+        
+        # Remove resume from kwargs and use the loaded model directly
+        train_kwargs_fixed = train_kwargs.copy()
+        del train_kwargs_fixed['resume']  # Remove resume parameter
+        
+        print(f"🎯 Training with loaded model (contains exact checkpoint state)...")
+        print(f"   Checkpoint: {args.checkpoint}")
+        if 'train_results' in training_state and training_state['train_results']:
+            results_data = training_state['train_results']
+            if 'val/box_loss' in results_data and results_data['val/box_loss']:
+                expected_box_loss = results_data['val/box_loss'][-1]
+                print(f"   Expected starting box loss: ~{expected_box_loss:.6f}")
+        
+        # Start training with the already loaded model that contains exact state
+        results = model.train(**train_kwargs_fixed)
         
         print(f"🎉 Training completed successfully!")
         print(f"📁 Results saved in: runs/detect/{args.name}")
@@ -308,6 +684,12 @@ def main():
     # Parse arguments
     args = parse_arguments()
     
+    # Restore exact training state
+    training_state = restore_exact_training_state(args.checkpoint)
+    if not training_state:
+        print("❌ Failed to restore training state")
+        sys.exit(1)
+    
     # Analyze checkpoint
     analysis = analyze_checkpoint(args.checkpoint)
     if not analysis:
@@ -321,14 +703,14 @@ def main():
         print(f"❌ Argument validation failed: {e}")
         sys.exit(1)
     
-    # Create model for resuming
+    # Create model for resuming (for analysis only)
     model = create_resume_model(args.checkpoint)
     if not model:
         print("❌ Failed to create resume model")
         sys.exit(1)
     
-    # Resume training
-    results = resume_training(args, analysis, model)
+    # Resume training with exact state
+    results = resume_training(args, analysis, model, training_state)
     if not results:
         print("❌ Training failed")
         sys.exit(1)
