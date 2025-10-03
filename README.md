@@ -460,6 +460,35 @@ python train_yolov12_dino.py \
     --name resumed_training
 ```
 
+### 🎯 **Resume DINO Training from Checkpoint**
+
+When resuming DINO training, you **MUST** specify the same DINO configuration to maintain architecture consistency:
+
+```bash
+# ✅ Resume DINO training - specify DINO arguments to match checkpoint
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size l \
+    --pretrain /workspace/DINOV3-YOLOV12/runs/detect/high_performance_p3p46/weights/last.pt \
+    --dinoversion 3 \
+    --dino-variant vitb16 \
+    --integration triple \
+    --epochs 400 \
+    --batch-size 60 \
+    --name cont_p3p4 \
+    --device 0,1
+
+# ❌ WRONG - will cause architecture mismatch
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size l \
+    --pretrain /path/to/dino_checkpoint.pt \
+    --epochs 400
+    # Missing DINO arguments causes pure YOLOv12 mode
+```
+
+**⚠️ Important:** When resuming DINO training, always include the original DINO configuration (`--dinoversion`, `--dino-variant`, `--integration`) to prevent architecture conflicts.
+
 ### 🎪 **Key Differences**
 
 | Parameter | Purpose | Input Type | Use Case |
