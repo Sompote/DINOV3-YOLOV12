@@ -734,15 +734,31 @@ def main():
         if args.pretrain:
             print(f"🔧 Loading from pretrained checkpoint: {args.pretrain}")
             
-            # ENHANCED PRETRAIN LOADING: First create model from config, then load weights
-            print(f"🔧 Creating model architecture from: {model_config}")
-            model = YOLO(model_config)
-            
-            # Validate checkpoint compatibility
-            print(f"🔍 Validating checkpoint compatibility...")
+            # CRITICAL: Extract original architecture from checkpoint
+            print(f"🔍 Extracting original architecture from checkpoint...")
             checkpoint = torch.load(args.pretrain, map_location='cpu')
             
-            # Extract model state for comparison
+            # Get the original config that was used to train the checkpoint
+            if 'train_args' in checkpoint:
+                original_config = checkpoint['train_args'].get('model', None)
+                if original_config and Path(original_config).exists():
+                    print(f"✅ Found original config in checkpoint: {original_config}")
+                    print(f"🔧 Using EXACT checkpoint architecture instead of generated config")
+                    model_config = original_config
+                else:
+                    print(f"⚠️  Original config not found or doesn't exist: {original_config}")
+                    print(f"🔧 Falling back to generated config: {model_config}")
+            else:
+                print(f"⚠️  No train_args in checkpoint, using generated config")
+            
+            # Create model from the correct architecture
+            print(f"🔧 Creating model from: {model_config}")
+            model = YOLO(model_config)
+            
+            # Load weights with validation
+            print(f"🔍 Loading checkpoint weights...")
+            
+            # Extract model weights (prefer EMA if available)
             if 'ema' in checkpoint and checkpoint['ema'] is not None:
                 ckpt_model = checkpoint['ema']
                 print(f"📊 Using EMA weights from checkpoint")
@@ -752,7 +768,7 @@ def main():
             else:
                 raise ValueError("No model weights found in checkpoint")
             
-            # Get state dicts for compatibility check
+            # Get state dicts for validation
             if hasattr(ckpt_model, 'state_dict'):
                 ckpt_state = ckpt_model.state_dict()
             elif isinstance(ckpt_model, dict):
@@ -762,48 +778,55 @@ def main():
             
             model_state = model.model.state_dict()
             
-            # Check compatibility
+            # Validate architecture match
             ckpt_keys = set(ckpt_state.keys())
             model_keys = set(model_state.keys())
-            compatible_keys = ckpt_keys & model_keys
-            compatibility_score = len(compatible_keys) / len(model_keys)
+            exact_matches = sum(1 for k in model_keys if k in ckpt_keys and model_state[k].shape == ckpt_state[k].shape)
+            compatibility_score = exact_matches / len(model_keys)
             
-            print(f"📊 Architecture compatibility: {compatibility_score:.1%} ({len(compatible_keys)}/{len(model_keys)} weights)")
+            print(f"📊 Architecture compatibility: {compatibility_score:.1%} ({exact_matches}/{len(model_keys)} weights)")
             
-            if compatibility_score < 0.95:
-                print(f"⚠️  WARNING: Low compatibility score ({compatibility_score:.1%})")
-                print(f"   This may indicate architecture mismatch!")
+            if compatibility_score < 0.99:
+                print(f"❌ CRITICAL: Low compatibility score ({compatibility_score:.1%})")
+                print(f"   This indicates architecture mismatch!")
                 
                 missing_keys = model_keys - ckpt_keys
+                extra_keys = ckpt_keys - model_keys
+                shape_mismatches = []
+                
+                for key in model_keys & ckpt_keys:
+                    if model_state[key].shape != ckpt_state[key].shape:
+                        shape_mismatches.append(f"{key}: {model_state[key].shape} vs {ckpt_state[key].shape}")
+                
                 if missing_keys:
-                    print(f"   Missing {len(missing_keys)} keys in checkpoint")
+                    print(f"   Missing {len(missing_keys)} keys:")
                     for key in list(missing_keys)[:3]:
                         print(f"     - {key}")
-                    if len(missing_keys) > 3:
-                        print(f"     ... and {len(missing_keys) - 3} more")
+                if shape_mismatches:
+                    print(f"   Shape mismatches: {len(shape_mismatches)}")
+                    for mismatch in shape_mismatches[:3]:
+                        print(f"     - {mismatch}")
+                
+                raise ValueError("Architecture mismatch prevents proper weight loading!")
             
-            # Enhanced weight loading
+            # Load exact matching weights
             matched_weights = {}
             for name, param in model_state.items():
                 if name in ckpt_state and param.shape == ckpt_state[name].shape:
                     matched_weights[name] = ckpt_state[name]
             
-            # Load the matched weights
+            # Load weights
             incompatible_keys = model.model.load_state_dict(matched_weights, strict=False)
             
-            loaded_count = len(matched_weights)
-            print(f"✅ Successfully loaded {loaded_count}/{len(model_state)} weights ({loaded_count/len(model_state)*100:.1f}%)")
+            print(f"✅ Successfully loaded {len(matched_weights)}/{len(model_state)} weights ({len(matched_weights)/len(model_state)*100:.1f}%)")
             
-            if incompatible_keys.missing_keys:
-                print(f"⚠️  Missing keys: {len(incompatible_keys.missing_keys)}")
-            if incompatible_keys.unexpected_keys:
-                print(f"ℹ️  Unexpected keys: {len(incompatible_keys.unexpected_keys)}")
-            
-            # Load training state if available
+            # Load training state
             if 'epoch' in checkpoint:
                 print(f"📅 Checkpoint from epoch: {checkpoint['epoch']}")
-            if 'best_fitness' in checkpoint and checkpoint['best_fitness']:
+            if 'best_fitness' in checkpoint and checkpoint['best_fitness'] is not None:
                 print(f"🏆 Checkpoint best fitness: {checkpoint['best_fitness']:.4f}")
+            
+            print(f"🎯 Checkpoint resuming ready - model should continue from trained state!")
                 
         else:
             print(f"🔧 Loading model: {model_config}")
