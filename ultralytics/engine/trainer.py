@@ -706,23 +706,48 @@ class BaseTrainer:
         self.plots[path] = {"data": data, "timestamp": time.time()}
 
     def final_eval(self):
-        """Performs final evaluation using test data for object detection YOLO model."""
+        """Performs final evaluation and displays comprehensive mAP results from validation, test data, and last training."""
         ckpt = {}
+        results_summary = {"best_val": None, "test_data": None, "last_train": None}
+        
         for f in self.last, self.best:
             if f.exists():
                 if f is self.last:
                     ckpt = strip_optimizer(f)
+                    # Evaluate last training checkpoint on validation data
+                    LOGGER.info(f"\n📈 Evaluating LAST training checkpoint {f} on validation data...")
+                    self.validator.args.plots = False  # Don't create plots for last checkpoint
+                    self.validator.args.split = "val"
+                    last_metrics = self.validator(model=f)
+                    if hasattr(last_metrics.get('metrics', {}), 'map50'):
+                        results_summary["last_train"] = {
+                            'map50': last_metrics['metrics'].map50,
+                            'map75': last_metrics['metrics'].map75, 
+                            'map': last_metrics['metrics'].map,
+                            'source': 'Last Training Checkpoint'
+                        }
                 elif f is self.best:
                     k = "train_results"  # update best.pt train_metrics from last.pt
                     strip_optimizer(f, updates={k: ckpt[k]} if k in ckpt else None)
-                    LOGGER.info(f"\nFinal testing {f} on test data...")
                     
-                    # Check if test data exists
+                    # Evaluate best model on validation data
+                    LOGGER.info(f"\n🏆 Evaluating BEST model {f} on validation data...")
+                    self.validator.args.plots = self.args.plots
+                    self.validator.args.split = "val"
+                    val_metrics = self.validator(model=f)
+                    if hasattr(val_metrics.get('metrics', {}), 'map50'):
+                        results_summary["best_val"] = {
+                            'map50': val_metrics['metrics'].map50,
+                            'map75': val_metrics['metrics'].map75,
+                            'map': val_metrics['metrics'].map,
+                            'source': 'Best Model on Validation Data'
+                        }
+                    
+                    # Check if test data exists and evaluate
                     if "test" in self.data and self.data["test"]:
-                        LOGGER.info("Using test dataset for final evaluation")
+                        LOGGER.info(f"\n🧪 Evaluating BEST model {f} on test data...")
                         
                         # Create test data loader  
-                        # Use the same batch size calculation as in _setup_train
                         batch_size = self.batch_size
                         test_dataset = self.data["test"]
                         test_loader = self.get_dataloader(
@@ -738,14 +763,62 @@ class BaseTrainer:
                         test_validator.args.plots = self.args.plots
                         test_validator.args.split = "test"
                         
-                        self.metrics = test_validator(model=f)
+                        test_metrics = test_validator(model=f)
+                        if hasattr(test_metrics.get('metrics', {}), 'map50'):
+                            results_summary["test_data"] = {
+                                'map50': test_metrics['metrics'].map50,
+                                'map75': test_metrics['metrics'].map75,
+                                'map': test_metrics['metrics'].map,
+                                'source': 'Best Model on Test Data'
+                            }
+                        self.metrics = test_metrics
                     else:
-                        LOGGER.warning("Test dataset not found, falling back to validation dataset for final evaluation")
-                        self.validator.args.plots = self.args.plots
-                        self.metrics = self.validator(model=f)
+                        LOGGER.warning("Test dataset not found - only validation and training results available")
+                        self.metrics = val_metrics
                     
                     self.metrics.pop("fitness", None)
                     self.run_callbacks("on_fit_epoch_end")
+        
+        # Display comprehensive mAP summary
+        self._display_map_summary(results_summary)
+
+    def _display_map_summary(self, results_summary):
+        """Display a comprehensive summary of mAP results from different data sources."""
+        LOGGER.info("\n" + "="*80)
+        LOGGER.info("📊 TRAINING COMPLETE - COMPREHENSIVE mAP RESULTS SUMMARY")
+        LOGGER.info("="*80)
+        
+        # Display results in order: best validation, test data, last training
+        display_order = [
+            ("best_val", "🏆 BEST MODEL - VALIDATION DATA"),
+            ("test_data", "🧪 BEST MODEL - TEST DATA"), 
+            ("last_train", "📈 LAST TRAINING CHECKPOINT")
+        ]
+        
+        for key, title in display_order:
+            if results_summary[key]:
+                result = results_summary[key]
+                LOGGER.info(f"\n{title}:")
+                LOGGER.info(f"  mAP@0.5      : {result['map50']:.4f}")
+                LOGGER.info(f"  mAP@0.75     : {result['map75']:.4f}")  
+                LOGGER.info(f"  mAP@0.5:0.95 : {result['map']:.4f}")
+            else:
+                if key == "test_data":
+                    LOGGER.info(f"\n🧪 BEST MODEL - TEST DATA: Not available (no test dataset)")
+                elif key == "last_train":
+                    LOGGER.info(f"\n📈 LAST TRAINING CHECKPOINT: Not available")
+        
+        # Summary comparison if multiple results available
+        available_results = [v for v in results_summary.values() if v is not None]
+        if len(available_results) >= 2:
+            LOGGER.info(f"\n📋 COMPARISON SUMMARY:")
+            best_map50 = max(available_results, key=lambda x: x['map50'])
+            best_map = max(available_results, key=lambda x: x['map'])
+            
+            LOGGER.info(f"  Best mAP@0.5      : {best_map50['map50']:.4f} ({best_map50['source']})")
+            LOGGER.info(f"  Best mAP@0.5:0.95 : {best_map['map']:.4f} ({best_map['source']})")
+        
+        LOGGER.info("="*80 + "\n")
 
     def check_resume(self, overrides):
         """Check if resume checkpoint exists and update arguments accordingly."""
