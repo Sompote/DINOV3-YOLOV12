@@ -735,43 +735,47 @@ class BaseTrainer:
                     self.validator.args.plots = self.args.plots
                     self.validator.args.split = "val"
                     val_metrics = self.validator(model=f)
-                    if hasattr(val_metrics.get('metrics', {}), 'map50'):
+                    if 'metrics/mAP50(B)' in val_metrics:
                         results_summary["best_val"] = {
-                            'map50': val_metrics['metrics'].map50,
-                            'map75': val_metrics['metrics'].map75,
-                            'map': val_metrics['metrics'].map,
+                            'map50': val_metrics['metrics/mAP50(B)'],
+                            'map75': val_metrics.get('metrics/mAP75(B)', 0.0),
+                            'map': val_metrics['metrics/mAP50-95(B)'],
                             'source': 'Best Model on Validation Data'
                         }
                     
                     # Check if test data exists and evaluate
-                    if "test" in self.data and self.data["test"]:
-                        LOGGER.info(f"\n🧪 Evaluating BEST model {f} on test data...")
-                        
-                        # Create test data loader  
-                        batch_size = self.batch_size
-                        test_dataset = self.data["test"]
-                        test_loader = self.get_dataloader(
-                            test_dataset, 
-                            batch_size=batch_size if self.args.task == "obb" else batch_size * 2, 
-                            rank=-1, 
-                            mode="val"
-                        )
-                        
-                        # Create test validator with test data loader
-                        test_validator = self.get_validator()
-                        test_validator.dataloader = test_loader
-                        test_validator.args.plots = self.args.plots
-                        test_validator.args.split = "test"
-                        
-                        test_metrics = test_validator(model=f)
-                        if hasattr(test_metrics.get('metrics', {}), 'map50'):
-                            results_summary["test_data"] = {
-                                'map50': test_metrics['metrics'].map50,
-                                'map75': test_metrics['metrics'].map75,
-                                'map': test_metrics['metrics'].map,
-                                'source': 'Best Model on Test Data'
-                            }
-                        self.metrics = test_metrics
+                    if "test" in self.data and self.data["test"] and self.data["test"] != self.data.get("val"):
+                        try:
+                            LOGGER.info(f"\n🧪 Evaluating BEST model {f} on test data...")
+                            
+                            # Create test data loader  
+                            batch_size = self.batch_size
+                            test_dataset = self.data["test"]
+                            test_loader = self.get_dataloader(
+                                test_dataset, 
+                                batch_size=batch_size if self.args.task == "obb" else batch_size * 2, 
+                                rank=-1, 
+                                mode="val"
+                            )
+                            
+                            # Create test validator with test data loader
+                            test_validator = self.get_validator()
+                            test_validator.dataloader = test_loader
+                            test_validator.args.plots = self.args.plots
+                            test_validator.args.split = "test"
+                            
+                            test_metrics = test_validator(model=f)
+                            if 'metrics/mAP50(B)' in test_metrics:
+                                results_summary["test_data"] = {
+                                    'map50': test_metrics['metrics/mAP50(B)'],
+                                    'map75': test_metrics.get('metrics/mAP75(B)', 0.0),
+                                    'map': test_metrics['metrics/mAP50-95(B)'],
+                                    'source': 'Best Model on Test Data'
+                                }
+                            self.metrics = test_metrics
+                        except Exception as e:
+                            LOGGER.warning(f"Test evaluation failed: {e}")
+                            self.metrics = val_metrics
                     else:
                         LOGGER.warning("Test dataset not found - only validation and training results available")
                         self.metrics = val_metrics
