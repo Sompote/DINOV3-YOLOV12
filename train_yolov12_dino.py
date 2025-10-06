@@ -62,6 +62,7 @@ Available Hyperparameters:
     Augmentation: --scale, --mosaic, --mixup, --copy-paste, --hsv-h/s/v, --degrees, --translate, --shear, --perspective, --fliplr/flipud
     Regularization: --label-smoothing, --dropout
     Training Control: --patience, --close-mosaic, --cos-lr, --amp, --deterministic
+    Evaluation: --eval-test, --eval-val, --detailed-results, --save-results-table
     System: --workers, --seed, --cache, --fraction
 """
 
@@ -348,6 +349,16 @@ def parse_arguments():
                        help='Early stopping patience (epochs) (default: 100)')
     parser.add_argument('--close-mosaic', type=int, default=10,
                        help='Disable mosaic augmentation for final epochs (default: 10)')
+    
+    # Evaluation and results display options
+    parser.add_argument('--eval-test', action='store_true', default=True,
+                       help='Evaluate on test dataset if available (default: True)')
+    parser.add_argument('--eval-val', action='store_true', default=True,
+                       help='Evaluate on validation dataset (default: True)')
+    parser.add_argument('--detailed-results', action='store_true', default=True,
+                       help='Show detailed mAP results summary (default: True)')
+    parser.add_argument('--save-results-table', action='store_true',
+                       help='Save results summary as markdown table')
     
     # Loss function parameters
     parser.add_argument('--box', type=float, default=7.5,
