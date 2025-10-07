@@ -105,6 +105,7 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
     # NEW INTEGRATION LOGIC:
     # single = P0 input preprocessing only
     # dual = P3+P4 backbone integration  
+    # dualp0p3 = P0 input + P3 backbone (optimized dual)
     # triple = P0+P3+P4 all levels
     
     if integration == 'single':
@@ -128,6 +129,13 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
         print("   📐 YOLOv12 -> DINO3(P3) -> DINO3(P4) -> Head")
         print("   🎯 High performance, multi-scale enhancement")
         config_name = f'yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-dual.yaml'
+        
+    elif integration == 'dualp0p3':
+        # DualP0P3 = P0 input preprocessing + P3 backbone integration
+        print("🎯 Using DINO3 DualP0P3 Integration (P0+P3 Optimized)")
+        print("   📐 Input -> DINO3Preprocessor -> YOLOv12 -> DINO3(P3) -> Head")
+        print("   ⚡ Balanced performance, optimized dual enhancement")
+        config_name = f'yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-dualp0p3.yaml'
         
     elif integration == 'triple':
         # Triple = P0+P3+P4 all levels
@@ -250,7 +258,7 @@ def parse_arguments():
                        help='DINOv3 model variant')
     parser.add_argument('--integration', type=str, default=None,
                        choices=['single', 'dual', 'triple', 'dualp0p3'],
-                       help='Integration type: single (P0 input), dual (P3+P4 backbone), triple (P0+P3+P4 all levels), dualp0p3 (P0+P3 dual integration). Required when using DINO')
+                       help='Integration type: single (P0 input), dual (P3+P4 backbone), dualp0p3 (P0+P3 optimized dual), triple (P0+P3+P4 all levels). Required when using DINO')
     parser.add_argument('--dino-input', type=str, default=None,
                        help='Custom DINO model input/path (overrides --dino-variant)')
     parser.add_argument('--pretrain', type=str, default=None,
