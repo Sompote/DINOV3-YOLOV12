@@ -174,15 +174,21 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
                 print(f"   📄 Using dual config as triple fallback: yolov12{yolo_size}-dino3-vitb16-dual.yaml")
                 return fallback_config
         elif integration == 'dualp0p3':
-            # For dualp0p3 integration, try specific dualp0p3 configs first
-            dualp0p3_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dualp0p3-dino{dinoversion}-{dino_variant}.yaml'
-            if Path(dualp0p3_config).exists():
-                print(f"   📄 Using specific dualp0p3 config: yolov12{yolo_size}-dualp0p3-dino{dinoversion}-{dino_variant}.yaml")
-                return dualp0p3_config
-            # Try fallback with matching variant first
+            # For dualp0p3 integration, try systematic naming first
+            systematic_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-dualp0p3.yaml'
+            if Path(systematic_config).exists():
+                print(f"   📄 Using systematic dualp0p3 config: yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-dualp0p3.yaml")
+                return systematic_config
+            # Try legacy naming pattern
+            legacy_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dualp0p3-dino{dinoversion}-{dino_variant}.yaml'
+            if Path(legacy_config).exists():
+                print(f"   📄 Using legacy dualp0p3 config: yolov12{yolo_size}-dualp0p3-dino{dinoversion}-{dino_variant}.yaml")
+                return legacy_config
+            # Try fallback with matching variant
             fallback_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-{dino_variant}-dual.yaml'
             if Path(fallback_config).exists():
                 print(f"   📄 Using variant-matched dual config as dualp0p3 fallback: yolov12{yolo_size}-dino3-{dino_variant}-dual.yaml")
+                print(f"   ⚠️  WARNING: This is dual (P3+P4) integration, not true dualp0p3 (P0+P3)!")
                 return fallback_config
             # Last resort: vitb16 dual config
             fallback_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-vitb16-dual.yaml'
