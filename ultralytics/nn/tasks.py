@@ -1066,6 +1066,11 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
             args = [c1, c2, *args[1:]]
         elif m is CBFuse:
             c2 = ch[f[-1]]
+        elif m in {DINO3Preprocessor, DINO3Backbone}:
+            # DINO modules: maintain input channels, args format: [model_name, freeze_backbone, output_channels]
+            c1 = ch[f] 
+            c2 = args[2] if len(args) > 2 else ch[f]  # output channels specified in args, default to input
+            args = [*args]  # keep original args format for DINO modules
         else:
             c2 = ch[f]
 
@@ -1075,7 +1080,7 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         m_.i, m_.f, m_.type = i, f, t  # attach index, 'from' index, type
         if verbose:
             LOGGER.info(f"{i:>3}{str(f):>20}{n_:>3}{m_.np:10.0f}  {t:<45}{str(args):<30}")  # print
-        save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+        save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1 and i != 0)  # append to savelist
         layers.append(m_)
         if i == 0:
             ch = []
