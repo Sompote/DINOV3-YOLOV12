@@ -113,8 +113,14 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
         print("🏗️  Using DINO3 Single Integration (P0 Input)")
         print("   📐 Input -> DINO3Preprocessor -> Original YOLOv12")
         print("   ✅ Clean architecture, most stable training")
-        
-        # Try size-specific config first, fallback to generic
+
+        # Try systematic P0-only config first (size + variant specific)
+        p0only_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-p0only.yaml'
+        if Path(p0only_config).exists():
+            print(f"   📄 Using P0-only config: yolov12{yolo_size}-dino{dinoversion}-{dino_variant}-p0only.yaml")
+            return p0only_config
+
+        # Try size-specific config, fallback to generic
         size_specific_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-preprocess.yaml'
         if Path(size_specific_config).exists():
             print(f"   📄 Using size-specific config: yolov12{yolo_size}-dino3-preprocess.yaml")
