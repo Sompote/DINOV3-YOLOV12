@@ -1488,6 +1488,46 @@ python train_yolov12_dino.py \
     --name test_dinov2_compatibility
 ```
 
+## ⚠️ Troubleshooting: NaN Loss
+
+### **If Training Shows NaN Loss:**
+
+**Quick Fix - Choose One:**
+
+**Option 1: Reduce Batch Size**
+```bash
+# If using batch 90 → try 45
+--batch-size 45
+
+# Still NaN? → try 24
+--batch-size 24
+
+# Still NaN? → try 16
+--batch-size 16
+```
+
+**Option 2: Reduce Learning Rate**
+```bash
+# If using lr 0.01 → try 0.005
+--lr 0.005
+
+# Still NaN? → try 0.003
+--lr 0.003
+
+# Still NaN? → try 0.001
+--lr 0.001
+```
+
+**Option 3: Both (Most Reliable)**
+```bash
+--batch-size 24 --lr 0.005
+```
+
+### **One-Line Rule:**
+**NaN Loss = Reduce batch size by half OR reduce learning rate by half (or both)**
+
+---
+
 ## Acknowledgement
 
 **Made by AI Research Group, Department of Civil Engineering, KMUTT** 🏛️
