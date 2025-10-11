@@ -1,0 +1,152 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    YOLOV12-DINO FLOPS CALCULATOR                         ║
+║                           START HERE                                     ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Welcome to the FLOPs Calculator for YOLOv12-DINO models!
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│ QUICK START - 3 EASY STEPS                                               │
+└───────────────────────────────────────────────────────────────────────────┘
+
+1. Open terminal and navigate to this folder:
+   cd Floptest
+
+2. Run the pre-configured script:
+   ./run_flopcal.sh
+
+3. View the report:
+   cat flops_report_yolo12s_dino3_vitb16_single.md
+
+That's it! You now have the GFLOPs calculation for your training configuration.
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│ WHAT'S IN THIS FOLDER?                                                    │
+└───────────────────────────────────────────────────────────────────────────┘
+
+EXECUTABLE SCRIPTS:
+├── flopcal.py           Main calculator script
+├── run_flopcal.sh       Pre-configured runner (generates report)
+└── test_flopcal.sh      Quick test (console output only)
+
+DOCUMENTATION:
+├── README.md            Overview and usage instructions
+├── FLOPCAL_QUICKREF.txt Quick reference (one page)
+├── FLOPCAL_USAGE.md     Usage guide for your configuration
+├── FLOPCAL_SUMMARY.md   Features and examples
+├── FLOPS_README.md      Complete documentation
+└── FLOPCAL_INDEX.md     File navigation guide
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│ YOUR TRAINING CONFIGURATION                                               │
+└───────────────────────────────────────────────────────────────────────────┘
+
+python train_yolov12_dino.py \
+    --data /Users/sompoteyouwai/env/data/crack-2/data.yaml \
+    --yolo-size s \
+    --dino-variant vitb16 \
+    --dinoversion 3 \
+    --integration single \
+    --epochs 700 \
+    --batch-size 2 \
+    --name yolo12sp0
+
+GFLOPs Calculation (from Floptest folder):
+    ./run_flopcal.sh
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│ EXAMPLE COMMANDS                                                          │
+└───────────────────────────────────────────────────────────────────────────┘
+
+From the Floptest folder:
+
+# Quick test (console output)
+./test_flopcal.sh
+
+# Full calculation with report
+./run_flopcal.sh
+
+# Base YOLOv12 (no DINO)
+python flopcal.py --yolo-size s
+
+# Compare model sizes
+python flopcal.py --yolo-size n  # nano
+python flopcal.py --yolo-size s  # small (yours)
+python flopcal.py --yolo-size l  # large
+
+# Your config manually
+python flopcal.py \
+    --yolo-size s \
+    --dino-variant vitb16 \
+    --dinoversion 3 \
+    --integration single
+
+# Generate custom report
+python flopcal.py --yolo-size s --save-report my_report.md
+
+# Get help
+python flopcal.py --help
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│ EXPECTED OUTPUT                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
+
+For YOLOv12s + DINOv3(vitb16) with single integration:
+✅ GFLOPs:            ~301 GFLOPs
+✅ Parameters:        ~103M (17M trainable, 86M frozen)
+✅ Model Size (FP32): ~391 MB
+
+For Base YOLOv12s (no DINO):
+✅ GFLOPs:            ~29.7 GFLOPs
+✅ Parameters:        ~11M
+✅ Model Size (FP32): ~43 MB
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│ DOCUMENTATION TO READ                                                     │
+└───────────────────────────────────────────────────────────────────────────┘
+
+1. START: cat FLOPCAL_QUICKREF.txt
+   One-page reference with all commands
+
+2. NEXT:  cat README.md
+   Overview and usage instructions
+
+3. MORE:  cat FLOPCAL_USAGE.md
+   Examples specific to your configuration
+
+4. FULL:  cat FLOPS_README.md
+   Complete documentation with all options
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│ TROUBLESHOOTING                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
+
+Problem: Scripts not executable
+Solution: chmod +x run_flopcal.sh test_flopcal.sh
+
+Problem: "thop not installed"
+Solution: pip install thop
+
+Problem: Module not found errors
+Solution: Make sure you run from the Floptest folder
+
+Problem: Need help
+Solution: python flopcal.py --help
+          cat FLOPCAL_QUICKREF.txt
+
+┌───────────────────────────────────────────────────────────────────────────┐
+│ NEXT STEPS                                                                │
+└───────────────────────────────────────────────────────────────────────────┘
+
+1. Read the quick reference: cat FLOPCAL_QUICKREF.txt
+2. Run your first calculation: ./run_flopcal.sh
+3. Check the generated report
+4. Try comparing different configurations
+5. Use reports in your documentation/paper
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                      YOU'RE READY TO GO! 🚀                              ║
+║                                                                           ║
+║            Run: ./run_flopcal.sh to get started                          ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+

@@ -1,0 +1,148 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    YOLOv12-DINO FLOPS CALCULATOR                         ║
+║                         QUICK REFERENCE                                  ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ YOUR TRAINING CONFIGURATION                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+python train_yolov12_dino.py \
+    --data /Users/sompoteyouwai/env/data/crack-2/data.yaml \
+    --yolo-size s \
+    --dino-variant vitb16 \
+    --dinoversion 3 \
+    --integration single \
+    --epochs 700 \
+    --batch-size 2 \
+    --name yolo12sp0
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ CALCULATE FLOPS - 3 QUICK METHODS                                       │
+└─────────────────────────────────────────────────────────────────────────┘
+
+1. PRE-CONFIGURED (with report):
+   ./run_flopcal.sh
+
+2. QUICK TEST (console only):
+   ./test_flopcal.sh
+
+3. MANUAL:
+   python flopcal.py --yolo-size s --dino-variant vitb16 \
+                     --dinoversion 3 --integration single
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ COMMON COMMANDS                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+# Base YOLOv12 (no DINO)
+python flopcal.py --yolo-size s
+
+# Your config
+python flopcal.py --yolo-size s --dino-variant vitb16 \
+                  --dinoversion 3 --integration single
+
+# With report
+python flopcal.py --yolo-size s --dino-variant vitb16 \
+                  --dinoversion 3 --integration single \
+                  --save-report my_report.md
+
+# Compare model sizes
+python flopcal.py --yolo-size n  # nano
+python flopcal.py --yolo-size s  # small (yours)
+python flopcal.py --yolo-size m  # medium
+python flopcal.py --yolo-size l  # large
+python flopcal.py --yolo-size x  # extra
+
+# Compare integrations
+python flopcal.py --yolo-size s --dino-variant vitb16 \
+                  --dinoversion 3 --integration single    # lightest
+python flopcal.py --yolo-size s --dino-variant vitb16 \
+                  --dinoversion 3 --integration dualp0p3  # moderate
+python flopcal.py --yolo-size s --dino-variant vitb16 \
+                  --dinoversion 3 --integration dual      # heavier
+python flopcal.py --yolo-size s --dino-variant vitb16 \
+                  --dinoversion 3 --integration triple    # heaviest
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ KEY OPTIONS                                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+--yolo-size         n/s/m/l/x (required)
+--dino-variant      vits16, vitb16, vitl16, convnext_base, etc.
+--dinoversion       2 or 3
+--integration       single, dual, dualp0p3, triple
+--imgsz             Input size (default: 640)
+--batch-size        Batch size (default: 1)
+--device            cpu or cuda (default: cpu)
+--method            thop, fvcore, or both (default: thop)
+--save-report       Save markdown report to file
+--unfreeze-dino     Count DINO as trainable
+--help              Show all options
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ OUTPUT INTERPRETATION                                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+GFLOPs              Computational complexity (lower = faster)
+                    1 GFLOP = 1 billion floating-point operations
+
+Parameters          Number of weights in model
+                    Total / Trainable / Frozen
+
+Model Size (FP32)   Memory to store weights
+                    Params × 4 bytes
+
+Performance Est.    Theoretical inference time
+                    Actual is 2-5× slower
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ EXPECTED GFLOPS (APPROXIMATE)                                            │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Base YOLOv12:
+  n: ~8.9 GFLOPs    s: ~29.7 GFLOPs    m: ~48.5 GFLOPs
+  l: ~86.9 GFLOPs   x: ~135.4 GFLOPs
+
+With DINOv3 (vitb16):
+  single:    +10-20% GFLOPs   (lightest DINO integration)
+  dualp0p3:  +30-50% GFLOPs   (moderate DINO integration)
+  dual:      +50-80% GFLOPs   (heavier DINO integration)
+  triple:    +100%+ GFLOPs    (heaviest DINO integration)
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ FILES CREATED                                                            │
+└─────────────────────────────────────────────────────────────────────────┘
+
+flopcal.py              Main calculator script
+run_flopcal.sh          Pre-configured runner (with report)
+test_flopcal.sh         Quick test runner (console only)
+FLOPS_README.md         Complete documentation
+FLOPCAL_USAGE.md        Usage guide for your config
+FLOPCAL_SUMMARY.md      Overview and summary
+FLOPCAL_QUICKREF.txt    This quick reference
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ TROUBLESHOOTING                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+"thop not installed"         → pip install thop
+"Config not found"           → cd to project directory
+Scripts not executable       → chmod +x *.sh
+CUDA out of memory          → Use --device cpu
+Help needed                 → python flopcal.py --help
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ DOCUMENTATION                                                            │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Quick Start:      FLOPCAL_USAGE.md
+Full Docs:        FLOPS_README.md
+Summary:          FLOPCAL_SUMMARY.md
+This Reference:   FLOPCAL_QUICKREF.txt
+Help Command:     python flopcal.py --help
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ TIP: Run './run_flopcal.sh' to calculate GFLOPs for your training setup ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
