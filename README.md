@@ -95,6 +95,8 @@ YOLOv12 surpasses all popular real-time object detectors in accuracy with compet
 | | `--integration` | str | None | Integration type | `--integration single` |
 | | `--dino-input` | str | None | Custom DINO model path | `--dino-input ./model.pth` |
 | | `--unfreeze-dino` | flag | False | Make DINO weights trainable | `--unfreeze-dino` |
+| **Pretraining** | `--pretrain` | str | None | Resume full YOLO checkpoint (architecture+optimizer) | `--pretrain runs/detect/exp/weights/last.pt` |
+| | `--pretrainyolo` | str | None | Copy backbone weights from base YOLO into dualp0p3 (P4+) | `--pretrainyolo yolov12l.pt` |
 | **Training Control** | `--lr` | float | 0.01 | Learning rate | `--lr 0.005` |
 | | `--lrf` | float | 0.01 | Final learning rate | `--lrf 0.1` |
 | | `--optimizer` | str | 'SGD' | Optimizer (SGD,Adam,AdamW) | `--optimizer AdamW` |
@@ -115,6 +117,10 @@ YOLOv12 surpasses all popular real-time object detectors in accuracy with compet
 | | `--name` | str | None | Experiment name | `--name my_experiment` |
 | | `--project` | str | 'runs/detect' | Project directory | `--project results/` |
 | | `--seed` | int | 0 | Random seed | `--seed 42` |
+
+> **When to use which pretraining flag?**  
+> • Use `--pretrain` when you have a full YOLOv12(+DINO) checkpoint and want to resume exactly where it stopped (optimizer, EMA, etc.).  
+> • Use `--pretrainyolo` when starting a fresh dualp0p3 run but you want the P4/P5 branches initialized from a vanilla YOLOv12 backbone. The script keeps DINO-enhanced P0–P3 layers untouched while auto-freezing the imported weights to avoid conflicts.
 
 ### 🎯 **Training Results Summary Format**
 
