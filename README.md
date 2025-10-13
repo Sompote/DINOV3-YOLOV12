@@ -29,6 +29,8 @@
 
 ## Updates
 
+- 2025/10/13: **NEW:** `--pretrainyolo` option seeds dualp0p3 runs with YOLO backbone weights (P4+) while leaving the DINO P0–P3 pipeline fresh—ideal for quick starts on custom datasets.
+
 - 2025/10/03: **🎯 MAJOR: EXACT Training State Restoration** - **Revolutionary enhancement** to `train_resume.py`! Now provides **perfect training continuity** with exact state restoration. Training resumes with **identical loss values** (no more 4x spikes), **exact learning rate** (0.00012475 vs old 0.01 shock), and **all 61 hyperparameters** automatically extracted. Solves the "training starts from scratch" problem completely. **Real-world tested**: User's checkpoint resumed seamlessly with box_loss: 0.865870, cls_loss: 0.815450 - exactly as expected. Just run: `python train_resume.py --checkpoint /path/to/checkpoint.pt --epochs 400`
 
 - 2025/09/29: **🎯 NEW: DualP0P3 Integration** - Added new `--integration dualp0p3` option combining P0 input preprocessing with P3 backbone enhancement! This optimized dual integration provides balanced performance with moderate computational cost (~6GB VRAM, 1.5x training time) while delivering +8-15% mAP improvement. Perfect for users who want enhanced performance without the full computational overhead of triple integration. Architecture: Input → DINO3Preprocessor → YOLOv12 → DINO3(P3) → Head.
@@ -95,8 +97,8 @@ YOLOv12 surpasses all popular real-time object detectors in accuracy with compet
 | | `--integration` | str | None | Integration type | `--integration single` |
 | | `--dino-input` | str | None | Custom DINO model path | `--dino-input ./model.pth` |
 | | `--unfreeze-dino` | flag | False | Make DINO weights trainable | `--unfreeze-dino` |
-| **Pretraining** | `--pretrain` | str | None | Resume full YOLO checkpoint (architecture+optimizer) | `--pretrain runs/detect/exp/weights/last.pt` |
-| | `--pretrainyolo` | str | None | Copy backbone weights from base YOLO into dualp0p3 (P4+) | `--pretrainyolo yolov12l.pt` |
+| **Pretraining** | `--pretrain` | str | None | Resume full YOLO checkpoint (architecture + optimizer) | `--pretrain runs/detect/exp/weights/last.pt` |
+| | `--pretrainyolo` | str | None | Seed dualp0p3 P4+ layers from a base YOLO weight file | `--pretrainyolo yolov12l.pt` |
 | **Training Control** | `--lr` | float | 0.01 | Learning rate | `--lr 0.005` |
 | | `--lrf` | float | 0.01 | Final learning rate | `--lrf 0.1` |
 | | `--optimizer` | str | 'SGD' | Optimizer (SGD,Adam,AdamW) | `--optimizer AdamW` |
@@ -118,9 +120,7 @@ YOLOv12 surpasses all popular real-time object detectors in accuracy with compet
 | | `--project` | str | 'runs/detect' | Project directory | `--project results/` |
 | | `--seed` | int | 0 | Random seed | `--seed 42` |
 
-> **When to use which pretraining flag?**  
-> • Use `--pretrain` when you have a full YOLOv12(+DINO) checkpoint and want to resume exactly where it stopped (optimizer, EMA, etc.).  
-> • Use `--pretrainyolo` when starting a fresh dualp0p3 run but you want the P4/P5 branches initialized from a vanilla YOLOv12 backbone. The script keeps DINO-enhanced P0–P3 layers untouched while auto-freezing the imported weights to avoid conflicts.
+> **Pretrain Flags:** `--pretrain` resumes an existing YOLO/DINO checkpoint end‑to‑end, while `--pretrainyolo` gives new dualp0p3 runs a YOLO backbone head start without touching the DINO-enhanced front half.
 
 ### 🎯 **Training Results Summary Format**
 
