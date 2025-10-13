@@ -153,19 +153,29 @@ def split_has_labels(data_yaml, split_name):
 
     for entry in split_paths:
         resolved = resolve_dataset_path(data_yaml, entry)
-        label_dir = find_label_directory(resolved)
-        if label_dir and label_dir.exists():
-            # Check for cache file first (faster)
-            cache_file = label_dir.parent / 'labels.cache'
+        resolved_path = Path(resolved)
+        label_dir = find_label_directory(resolved_path)
+
+        candidate_cache_parents = {
+            resolved_path,
+            resolved_path.parent if resolved_path.parent else None,
+        }
+        if label_dir:
+            candidate_cache_parents.add(label_dir)
+            candidate_cache_parents.add(label_dir.parent)
+
+        for parent in filter(None, candidate_cache_parents):
+            cache_file = Path(parent) / 'labels.cache'
             if cache_file.exists():
                 try:
                     if cache_file.stat().st_size > 0:
-                        print(f"   Found valid labels cache for '{split_name}' split")
-                        print(f"   ℹ️  YOLO will use cached labels for validation")
+                        print(f"   Found cached labels for '{split_name}' split at {cache_file}")
+                        print("   ℹ️  Validation will proceed using cached annotations")
                         return True
                 except OSError:
-                    pass
+                    continue
 
+        if label_dir and label_dir.exists():
             # Count label files (both empty and non-empty)
             label_files = [p for p in label_dir.rglob('*.txt') if p.is_file() and p.suffix.lower() == '.txt']
 
@@ -182,7 +192,7 @@ def split_has_labels(data_yaml, split_name):
                 total_labels = len(label_files)
                 if non_empty_count > 0:
                     print(f"   Found {non_empty_count}/{total_labels} labeled images in '{split_name}' split")
-                    print(f"   ℹ️  Images without labels will be automatically skipped during validation")
+                    print("   ℹ️  Images without labels will be automatically skipped during validation")
                     return True
                 else:
                     print(f"   ⚠️  Found {total_labels} label files but all are empty in '{split_name}' split")
@@ -190,7 +200,7 @@ def split_has_labels(data_yaml, split_name):
             # If labels directory exists but no .txt files found, trust YOLO will create them
             # This handles the case where training hasn't started yet and cache will be created
             print(f"   Found labels directory for '{split_name}' split: {label_dir}")
-            print(f"   ℹ️  YOLO will scan and cache labels during training initialization")
+            print("   ℹ️  YOLO will scan and cache labels during training initialization")
             return True
 
     return False
