@@ -155,16 +155,32 @@ def split_has_labels(data_yaml, split_name):
         resolved = resolve_dataset_path(data_yaml, entry)
         label_dir = find_label_directory(resolved)
         if label_dir:
-            txt_exists = any(
-                p.is_file() and p.suffix.lower() == '.txt'
-                for p in label_dir.rglob('*.txt')
-            )
-            if txt_exists:
-                return True
+            # Count label files (both empty and non-empty)
+            label_files = [p for p in label_dir.rglob('*.txt') if p.is_file() and p.suffix.lower() == '.txt']
+
+            if label_files:
+                # Count non-empty label files
+                non_empty_count = 0
+                for label_file in label_files:
+                    try:
+                        if label_file.stat().st_size > 0:
+                            non_empty_count += 1
+                    except OSError:
+                        pass
+
+                total_labels = len(label_files)
+                if non_empty_count > 0:
+                    print(f"   Found {non_empty_count}/{total_labels} labeled images in '{split_name}' split")
+                    print(f"   ℹ️  Images without labels will be automatically skipped during validation")
+                    return True
+                else:
+                    print(f"   ⚠️  Found {total_labels} label files but all are empty in '{split_name}' split")
+
             cache_file = label_dir.parent / 'labels.cache'
             if cache_file.exists():
                 try:
                     if cache_file.stat().st_size > 0:
+                        print(f"   Found valid labels cache for '{split_name}' split")
                         return True
                 except OSError:
                     pass
