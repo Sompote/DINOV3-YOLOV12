@@ -109,10 +109,26 @@ warnings.filterwarnings("ignore", message="Argument\\(s\\) 'quality_lower'")
 
 
 def resolve_dataset_path(data_yaml, raw_path):
-    """Resolve dataset image directory relative to the data.yaml file."""
+    """
+    Resolve dataset image directory relative to the data.yaml file.
+
+    Special handling: Treats '../' as referring to the data.yaml's directory,
+    not the parent directory. This allows data.yaml to use '../train/images'
+    to mean 'train/images' relative to the data.yaml location.
+    """
     path = Path(raw_path)
     if not path.is_absolute():
-        path = Path(data_yaml).parent / path
+        # Special case: if path starts with '../', treat it as relative to data.yaml's directory
+        # (not the parent directory as standard path resolution would do)
+        if str(path).startswith('../'):
+            # Remove the '../' prefix and resolve relative to data.yaml's directory
+            adjusted_path = str(path)[3:]  # Remove '../'
+            resolved = (Path(data_yaml).parent / adjusted_path).resolve()
+            return resolved
+        else:
+            # Standard relative path resolution
+            resolved = (Path(data_yaml).parent / path).resolve()
+            return resolved
     return path
 
 
@@ -154,7 +170,10 @@ def split_has_labels(data_yaml, split_name):
     for entry in split_paths:
         resolved = resolve_dataset_path(data_yaml, entry)
         resolved_path = Path(resolved)
+        print(f"   🔍 Resolving '{split_name}' entry: '{entry}' -> {resolved_path}")
+        print(f"   📂 Path exists: {resolved_path.exists()}")
         label_dir = find_label_directory(resolved_path)
+        print(f"   🏷️  Label directory: {label_dir}")
 
         candidate_cache_parents = {
             resolved_path,
