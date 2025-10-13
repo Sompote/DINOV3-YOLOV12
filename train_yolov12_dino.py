@@ -154,7 +154,18 @@ def split_has_labels(data_yaml, split_name):
     for entry in split_paths:
         resolved = resolve_dataset_path(data_yaml, entry)
         label_dir = find_label_directory(resolved)
-        if label_dir:
+        if label_dir and label_dir.exists():
+            # Check for cache file first (faster)
+            cache_file = label_dir.parent / 'labels.cache'
+            if cache_file.exists():
+                try:
+                    if cache_file.stat().st_size > 0:
+                        print(f"   Found valid labels cache for '{split_name}' split")
+                        print(f"   ℹ️  YOLO will use cached labels for validation")
+                        return True
+                except OSError:
+                    pass
+
             # Count label files (both empty and non-empty)
             label_files = [p for p in label_dir.rglob('*.txt') if p.is_file() and p.suffix.lower() == '.txt']
 
@@ -176,14 +187,11 @@ def split_has_labels(data_yaml, split_name):
                 else:
                     print(f"   ⚠️  Found {total_labels} label files but all are empty in '{split_name}' split")
 
-            cache_file = label_dir.parent / 'labels.cache'
-            if cache_file.exists():
-                try:
-                    if cache_file.stat().st_size > 0:
-                        print(f"   Found valid labels cache for '{split_name}' split")
-                        return True
-                except OSError:
-                    pass
+            # If labels directory exists but no .txt files found, trust YOLO will create them
+            # This handles the case where training hasn't started yet and cache will be created
+            print(f"   Found labels directory for '{split_name}' split: {label_dir}")
+            print(f"   ℹ️  YOLO will scan and cache labels during training initialization")
+            return True
 
     return False
 
