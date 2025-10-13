@@ -154,8 +154,20 @@ def split_has_labels(data_yaml, split_name):
     for entry in split_paths:
         resolved = resolve_dataset_path(data_yaml, entry)
         label_dir = find_label_directory(resolved)
-        if label_dir and any(label_dir.rglob('*.txt')):
-            return True
+        if label_dir:
+            txt_exists = any(
+                p.is_file() and p.suffix.lower() == '.txt'
+                for p in label_dir.rglob('*.txt')
+            )
+            if txt_exists:
+                return True
+            cache_file = label_dir.parent / 'labels.cache'
+            if cache_file.exists():
+                try:
+                    if cache_file.stat().st_size > 0:
+                        return True
+                except OSError:
+                    pass
 
     return False
 
