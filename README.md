@@ -709,6 +709,22 @@ python train_resume.py --checkpoint /path/to/checkpoint.pt --epochs 400 --device
 |:----------|:--------|:-----------|:---------|
 | `--dino-input` | Load custom DINO models | DINO backbone weights (.pth, .pt) | Enhanced vision features |
 | `--pretrain` | Resume YOLO training | YOLO checkpoint (.pt) | Continue training from checkpoint |
+| `--pretrainyolo` | Inject base YOLO weights into dualp0p3 models | YOLO backbone weights (.pt) | Start dualp0p3 runs with P4+ YOLO initialization |
+
+> **Note:** `--pretrainyolo` is optimized for the `dualp0p3` integration (YOLOv12-L). The script automatically copies weights from layer P4 onward while keeping the DINO-enhanced P0–P3 pipeline untouched. It’s ideal when you want a YOLO foundation but still train the DINO front end from scratch.
+
+```bash
+# DualP0P3 with partial YOLO pretraining (recommended for crack datasets)
+python train_yolov12_dino.py \
+    --data crack.yaml \
+    --yolo-size l \
+    --dinoversion 3 \
+    --dino-variant vitb16 \
+    --integration dualp0p3 \
+    --pretrainyolo yolov12l.pt \
+    --epochs 200 \
+    --batch-size 8
+```
 
 ### 🧬 **Standard DINOv3 Models**
 ```bash
@@ -1574,4 +1590,3 @@ The code is based on [ultralytics](https://github.com/ultralytics/ultralytics). 
 [🔥 **Get Started Now**](#-quick-start-for-new-users) • [🎯 **Explore Models**](#-model-zoo) • [🏗️ **View Architecture**](#-architecture-three-ways-to-use-dino-with-yolov12)
 
 </div>
-

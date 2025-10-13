@@ -70,6 +70,8 @@ import argparse
 import sys
 import os
 from pathlib import Path
+import logging
+import warnings
 import torch
 
 # Add ultralytics to path
@@ -79,10 +81,174 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
 from ultralytics import YOLO
+from ultralytics.nn.modules.block import DINO3Backbone, DINO3Preprocessor
 from ultralytics.utils import LOGGER
 import yaml
 import tempfile
 import os
+
+IMG_SUFFIXES = {'.jpg', '.jpeg', '.png', '.bmp', '.tif', '.tiff', '.webp'}
+
+
+class TrainerWarningFilter(logging.Filter):
+    """Filter out noisy warnings about toggling requires_grad on frozen DINO layers."""
+
+    SUPPRESSED_SNIPPETS = (
+        "setting 'requires_grad=True' for frozen layer",
+        "Freezing layer 'model.23.dfl.conv.weight'",
+    )
+
+    def filter(self, record):
+        message = record.getMessage()
+        return not any(snippet in message for snippet in self.SUPPRESSED_SNIPPETS)
+
+
+# Suppress specific repeated warnings without muting other logging
+LOGGER.addFilter(TrainerWarningFilter())
+warnings.filterwarnings("ignore", message="Argument\\(s\\) 'quality_lower'")
+
+
+def resolve_dataset_path(data_yaml, raw_path):
+    """Resolve dataset image directory relative to the data.yaml file."""
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = Path(data_yaml).parent / path
+    return path
+
+
+def find_label_directory(image_path):
+    """Infer the label directory corresponding to an image directory."""
+    image_path = Path(image_path)
+    candidates = []
+    if image_path.is_file():
+        candidates.append(image_path.with_suffix('.txt').parent)
+    elif image_path.is_dir():
+        if image_path.name.lower() == 'images':
+            candidates.append(image_path.parent / 'labels')
+        candidates.append(image_path.with_name('labels'))
+        candidates.append(image_path / 'labels')
+    for cand in candidates:
+        if cand.exists():
+            return cand
+    return None
+
+
+def split_has_labels(data_yaml, split_name):
+    """Check whether the specified split in data.yaml has at least one label file."""
+    try:
+        with open(data_yaml, 'r') as f:
+            data_cfg = yaml.safe_load(f)
+    except Exception as exc:
+        print(f"⚠️  Could not read {data_yaml} to verify {split_name} split: {exc}")
+        return True  # skip validation rather than block training
+
+    split_entry = data_cfg.get(split_name)
+    if not split_entry:
+        return False
+
+    if isinstance(split_entry, (str, Path)):
+        split_paths = [split_entry]
+    else:
+        split_paths = list(split_entry)
+
+    for entry in split_paths:
+        resolved = resolve_dataset_path(data_yaml, entry)
+        label_dir = find_label_directory(resolved)
+        if label_dir and any(label_dir.rglob('*.txt')):
+            return True
+
+    return False
+
+
+def collect_image_files(image_entry):
+    """Collect image files from a directory or file list."""
+    image_entry = Path(image_entry)
+    files = []
+    if image_entry.is_dir():
+        files = sorted([p for p in image_entry.rglob('*') if p.suffix.lower() in IMG_SUFFIXES])
+    elif image_entry.is_file():
+        try:
+            with open(image_entry, 'r') as f:
+                lines = [line.strip() for line in f if line.strip()]
+            for line in lines:
+                path = Path(line)
+                if not path.is_absolute():
+                    path = image_entry.parent / path
+                if path.suffix.lower() in IMG_SUFFIXES:
+                    files.append(path.resolve())
+        except Exception:
+            pass
+    return files
+
+
+def infer_label_path(image_path):
+    """Infer the label file path corresponding to an image path."""
+    image_path = Path(image_path)
+    parts = list(image_path.parts)
+    try:
+        idx = next(i for i, part in enumerate(parts) if part.lower() == 'images')
+        parts[idx] = 'labels'
+        label_path = Path(*parts).with_suffix('.txt')
+    except StopIteration:
+        label_path = image_path.with_suffix('.txt')
+    return label_path
+
+
+def adjust_training_fraction_for_labels(data_yaml, fraction):
+    """Adjust dataset fraction to ensure at least one labeled sample is included."""
+    if fraction >= 1.0:
+        return fraction
+
+    try:
+        with open(data_yaml, 'r') as f:
+            data_cfg = yaml.safe_load(f)
+    except Exception as exc:
+        print(f"⚠️  Could not read {data_yaml} to adjust fraction: {exc}")
+        return fraction
+
+    train_entry = data_cfg.get('train')
+    if not train_entry:
+        return fraction
+
+    if isinstance(train_entry, (str, Path)):
+        train_entries = [train_entry]
+    else:
+        train_entries = list(train_entry)
+
+    image_paths = []
+    for entry in train_entries:
+        resolved = resolve_dataset_path(data_yaml, entry)
+        image_paths.extend(collect_image_files(resolved))
+
+    if not image_paths:
+        return fraction
+
+    total_images = len(image_paths)
+    first_labeled_index = None
+    for idx, image_path in enumerate(image_paths):
+        label_path = infer_label_path(image_path)
+        if label_path.exists():
+            try:
+                if label_path.read_text().strip():
+                    first_labeled_index = idx
+                    break
+            except Exception:
+                continue
+
+    if first_labeled_index is None:
+        print("⚠️  No non-empty label files found in the training set. Please verify dataset annotations.")
+        return fraction
+
+    minimum_fraction = (first_labeled_index + 1) / total_images
+    minimum_fraction = max(minimum_fraction, 1 / total_images)
+    minimum_fraction = min(1.0, minimum_fraction + 1e-3)  # add epsilon to counter rounding
+
+    if minimum_fraction > fraction:
+        print(f"⚠️  Adjusting training fraction from {fraction} to {minimum_fraction:.3f} to include labeled samples.")
+        return minimum_fraction
+
+    return fraction
+
 
 def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, integration=None, dino_input=None):
     """
@@ -275,6 +441,8 @@ def parse_arguments():
                        help='Custom DINO model input/path (overrides --dino-variant)')
     parser.add_argument('--pretrain', type=str, default=None,
                        help='Pretrained YOLO checkpoint to load (.pt file)')
+    parser.add_argument('--pretrainyolo', type=str, default=None,
+                       help='Load base YOLO weights partially for dualp0p3 integration (P4 and above)')
     
     # Training parameters
     parser.add_argument('--epochs', type=int, default=None,
@@ -463,6 +631,18 @@ def validate_arguments(args):
         LOGGER.info(f"Using custom DINO input: {args.dino_input}")
     
     # Handle pretrain checkpoint logic
+    if args.pretrain and args.pretrainyolo:
+        raise ValueError("Cannot use both --pretrain and --pretrainyolo simultaneously.")
+
+    if args.pretrainyolo:
+        if not os.path.exists(args.pretrainyolo):
+            raise FileNotFoundError(f"YOLO pretraining weights not found: {args.pretrainyolo}")
+        if args.integration != 'dualp0p3':
+            LOGGER.warning("⚠️  --pretrainyolo is currently optimized for dualp0p3 integration. Proceeding anyway.")
+        if args.yolo_size.lower() != 'l':
+            LOGGER.warning("⚠️  --pretrainyolo support is tuned for YOLOv12l; ensure weight compatibility.")
+        LOGGER.info(f"Using base YOLO pretraining weights: {args.pretrainyolo}")
+
     if args.pretrain:
         if not os.path.exists(args.pretrain):
             raise FileNotFoundError(f"Pretrained checkpoint not found: {args.pretrain}")
@@ -698,6 +878,82 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
     
     return temp_path
 
+
+def load_partial_yolo_weights(target_model, weight_path, integration=None, yolo_size=None):
+    """
+    Load base YOLO weights into a dualp0p3 model starting from layers after the DINO backbone (P4 onwards).
+    This preserves randomly initialized weights for the P0-P3 pipeline that interacts with DINO.
+    """
+    if not weight_path:
+        return
+
+    print(f"🧩 Applying partial YOLO pretraining from: {weight_path}")
+    if integration != 'dualp0p3':
+        print(f"   ⚠️  Requested integration '{integration}' differs from dualp0p3. Proceeding with best effort.")
+    if yolo_size and yolo_size.lower() != 'l':
+        print(f"   ⚠️  Expected YOLOv12l for optimal alignment but received '{yolo_size}'. Ensure compatibility.")
+
+    try:
+        source_model = YOLO(weight_path)
+    except Exception as exc:
+        print(f"   ❌ Failed to load base YOLO weights from {weight_path}: {exc}")
+        return
+
+    target_layers = list(target_model.model.model)
+    source_layers = list(source_model.model.model)
+    base_idx = 0
+    encountered_dino_backbone = False
+    loaded_layers = 0
+    skipped_layers = 0
+    total_params = 0
+    mismatched_layers = []
+
+    for layer in target_layers:
+        if isinstance(layer, (DINO3Preprocessor, DINO3Backbone)):
+            if isinstance(layer, DINO3Backbone):
+                encountered_dino_backbone = True
+            continue
+
+        if base_idx >= len(source_layers):
+            break
+
+        source_layer = source_layers[base_idx]
+
+        if encountered_dino_backbone:
+            source_state = source_layer.state_dict()
+            target_state = layer.state_dict()
+
+            if not source_state or not target_state:
+                base_idx += 1
+                continue
+
+            compatible = {
+                k: v
+                for k, v in source_state.items()
+                if k in target_state and v.shape == target_state[k].shape
+            }
+
+            if not compatible:
+                mismatched_layers.append(layer.i if hasattr(layer, "i") else base_idx)
+            else:
+                for key, tensor in compatible.items():
+                    target_state[key] = tensor.clone()
+                    total_params += tensor.numel()
+                layer.load_state_dict(target_state, strict=True)
+                loaded_layers += 1
+        else:
+            skipped_layers += 1
+
+        base_idx += 1
+
+    print(f"   ✅ Loaded weights into {loaded_layers} layers (skipped {skipped_layers} before DINO)")
+    print(f"   📦 Total parameters updated: {total_params:,}")
+    if mismatched_layers:
+        print(f"   ⚠️  Layers with shape mismatches (skipped): {mismatched_layers}")
+    if base_idx < len(source_layers):
+        print(f"   ℹ️  Source model has {len(source_layers) - base_idx} additional layers that were not mapped.")
+    del source_model
+
 def main():
     """Main training function."""
     print("🚀 YOLOv12 + DINOv3 Systematic Training Script")
@@ -707,6 +963,22 @@ def main():
     args = parse_arguments()
     args = validate_arguments(args)
     args = setup_training_parameters(args)
+
+    if args.fraction < 1.0:
+        adjusted_fraction = adjust_training_fraction_for_labels(args.data, args.fraction)
+        if adjusted_fraction != args.fraction:
+            args.fraction = adjusted_fraction
+
+    if args.val:
+        if not split_has_labels(args.data, 'val'):
+            print("⚠️  No label files found for validation split. Disabling validation to avoid crashes.")
+            args.val = False
+            if hasattr(args, 'eval_val'):
+                args.eval_val = False
+        else:
+            print("✅ Validation split contains label files.")
+    else:
+        print("ℹ️  Validation disabled by configuration.")
     
     # Create model configuration path
     model_config = create_model_config_path(
@@ -727,6 +999,7 @@ def main():
         print(f"   DINO: None (Base YOLOv12)")
     print(f"   Config: {model_config}")
     print(f"   Dataset: {args.data}")
+    print(f"   Validation: {'Enabled' if args.val else 'Disabled'}")
     print(f"   Epochs: {args.epochs}")
     print(f"   Batch Size: {args.batch_size}")
     print(f"   Image Size: {args.imgsz}")
@@ -810,83 +1083,112 @@ def main():
         else:
             print(f"🔧 Loading model: {model_config}")
             model = YOLO(model_config)
+            if args.pretrainyolo:
+                load_partial_yolo_weights(model, args.pretrainyolo, args.integration, args.yolo_size)
         
         # Note: DINO freezing is now handled automatically in the YAML config
         # The freeze_backbone parameter is set during config modification
         # Start training
-        print("🏋️  Starting training...")
-        results = model.train(
+        train_kwargs = {
             # Core training parameters
-            data=args.data,
-            epochs=args.epochs,
-            batch=args.batch_size,
-            imgsz=args.imgsz,
-            device=args.device,
-            name=experiment_name,
-            
+            'data': args.data,
+            'epochs': args.epochs,
+            'batch': args.batch_size,
+            'imgsz': args.imgsz,
+            'device': args.device,
+            'name': experiment_name,
+
             # Learning rate and optimization
-            lr0=args.lr,
-            lrf=args.lrf,
-            momentum=args.momentum,
-            weight_decay=args.weight_decay,
-            warmup_epochs=args.warmup_epochs,
-            warmup_momentum=args.warmup_momentum,
-            warmup_bias_lr=args.warmup_bias_lr,
-            optimizer=args.optimizer,
-            kobj=args.kobj,
-            
+            'lr0': args.lr,
+            'lrf': args.lrf,
+            'momentum': args.momentum,
+            'weight_decay': args.weight_decay,
+            'warmup_epochs': args.warmup_epochs,
+            'warmup_momentum': args.warmup_momentum,
+            'warmup_bias_lr': args.warmup_bias_lr,
+            'optimizer': args.optimizer,
+            'kobj': args.kobj,
+
             # Regularization
-            label_smoothing=args.label_smoothing,
-            dropout=args.dropout,
-            
+            'label_smoothing': args.label_smoothing,
+            'dropout': args.dropout,
+
             # Data augmentation
-            scale=args.scale,
-            mosaic=args.mosaic,
-            mixup=args.mixup,
-            copy_paste=args.copy_paste,
-            hsv_h=args.hsv_h,
-            hsv_s=args.hsv_s,
-            hsv_v=args.hsv_v,
-            degrees=args.degrees,
-            translate=args.translate,
-            shear=args.shear,
-            perspective=args.perspective,
-            flipud=args.flipud,
-            fliplr=args.fliplr,
-            erasing=args.erasing,
-            crop_fraction=args.crop_fraction,
-            
+            'scale': args.scale,
+            'mosaic': args.mosaic,
+            'mixup': args.mixup,
+            'copy_paste': args.copy_paste,
+            'hsv_h': args.hsv_h,
+            'hsv_s': args.hsv_s,
+            'hsv_v': args.hsv_v,
+            'degrees': args.degrees,
+            'translate': args.translate,
+            'shear': args.shear,
+            'perspective': args.perspective,
+            'flipud': args.flipud,
+            'fliplr': args.fliplr,
+            'erasing': args.erasing,
+            'crop_fraction': args.crop_fraction,
+
             # Training control
-            resume=args.resume,
-            save_period=args.save_period,
-            val=args.val,
-            plots=args.plots,
-            patience=args.patience,
-            close_mosaic=args.close_mosaic,
-            
+            'resume': args.resume,
+            'save_period': args.save_period,
+            'val': args.val,
+            'plots': args.plots,
+            'patience': args.patience,
+            'close_mosaic': args.close_mosaic,
+
             # Loss function parameters
-            box=args.box,
-            cls=args.cls,
-            dfl=args.dfl,
-            
+            'box': args.box,
+            'cls': args.cls,
+            'dfl': args.dfl,
+
             # System and performance
-            workers=args.workers,
-            project=args.project,
-            seed=args.seed,
-            deterministic=args.deterministic,
-            single_cls=args.single_cls,
-            rect=args.rect,
-            cos_lr=args.cos_lr,
-            amp=args.amp,
-            fraction=args.fraction,
-            profile=args.profile,
-            cache=args.cache,
-            overlap_mask=args.overlap_mask,
-            mask_ratio=args.mask_ratio,
-            
+            'workers': args.workers,
+            'project': args.project,
+            'seed': args.seed,
+            'deterministic': args.deterministic,
+            'single_cls': args.single_cls,
+            'rect': args.rect,
+            'cos_lr': args.cos_lr,
+            'amp': args.amp,
+            'fraction': args.fraction,
+            'profile': args.profile,
+            'cache': args.cache,
+            'overlap_mask': args.overlap_mask,
+            'mask_ratio': args.mask_ratio,
+
             # Additional parameters
-            verbose=True
-        )
+            'verbose': True,
+        }
+
+        print("🏋️  Starting training...")
+        attempts = 0
+        while True:
+            try:
+                results = model.train(**train_kwargs)
+                break
+            except IndexError as exc:
+                attempts += 1
+                if attempts > 2 or 'list index out of range' not in str(exc):
+                    raise
+                current_fraction = train_kwargs.get('fraction', 1.0)
+                if current_fraction < 1.0:
+                    adjusted_fraction = max(current_fraction, 0.01)
+                    if adjusted_fraction != current_fraction:
+                        print(f"⚠️  Dataset fraction {current_fraction} resulted in empty validation set. "
+                              f"Retrying with fraction={adjusted_fraction} to keep validation enabled.")
+                        train_kwargs['fraction'] = adjusted_fraction
+                        args.fraction = adjusted_fraction
+                        continue
+                if train_kwargs.get('val', True):
+                    print("⚠️  Validation dataset appears empty or invalid. Retrying without validation.")
+                    train_kwargs['val'] = False
+                    args.val = False
+                    if hasattr(args, 'eval_val'):
+                        args.eval_val = False
+                    continue
+                raise
         
         # Handle gradient clipping if specified
         if args.grad_clip > 0:
