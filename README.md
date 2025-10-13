@@ -25,7 +25,124 @@
 
 </div>
 
-[![arXiv](https://img.shields.io/badge/arXiv-2502.12524-b31b1b.svg)](https://arxiv.org/abs/2502.12524) [![Hugging Face Demo](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/sunsmarterjieleaf/yolov12) <a href="https://colab.research.google.com/github/roboflow-ai/notebooks/blob/main/notebooks/train-yolov12-object-detection-model.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a> [![Kaggle Notebook](https://img.shields.io/badge/Kaggle-Notebook-blue?logo=kaggle)](https://www.kaggle.com/code/jxxn03x/yolov12-on-custom-data) [![LightlyTrain Notebook](https://img.shields.io/badge/LightlyTrain-Notebook-blue?)](https://colab.research.google.com/github/lightly-ai/lightly-train/blob/main/examples/notebooks/yolov12.ipynb) [![deploy](https://media.roboflow.com/deploy.svg)](https://blog.roboflow.com/use-yolov12-with-roboflow/#deploy-yolov12-models-with-roboflow) [![Openbayes](https://img.shields.io/static/v1?label=Demo&message=OpenBayes%E8%B4%9D%E5%BC%8F%E8%AE%A1%E7%AE%97&color=green)](https://openbayes.com/console/public/tutorials/A4ac4xNrUCQ) [![DINOv3 Official](https://img.shields.io/badge/🔥_Official_DINOv3-Integrated-red)](DINOV3_OFFICIAL_GUIDE.md) [![Custom Input](https://img.shields.io/badge/⚡_--dino--input-FULLY_WORKING-brightgreen)](DINO_INPUT_GUIDE.md) 
+[![arXiv](https://img.shields.io/badge/arXiv-2502.12524-b31b1b.svg)](https://arxiv.org/abs/2502.12524) [![Hugging Face Demo](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/sunsmarterjieleaf/yolov12) <a href="https://colab.research.google.com/github/roboflow-ai/notebooks/blob/main/notebooks/train-yolov12-object-detection-model.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a> [![Kaggle Notebook](https://img.shields.io/badge/Kaggle-Notebook-blue?logo=kaggle)](https://www.kaggle.com/code/jxxn03x/yolov12-on-custom-data) [![LightlyTrain Notebook](https://img.shields.io/badge/LightlyTrain-Notebook-blue?)](https://colab.research.google.com/github/lightly-ai/lightly-train/blob/main/examples/notebooks/yolov12.ipynb) [![deploy](https://media.roboflow.com/deploy.svg)](https://blog.roboflow.com/use-yolov12-with-roboflow/#deploy-yolov12-models-with-roboflow) [![Openbayes](https://img.shields.io/static/v1?label=Demo&message=OpenBayes%E8%B4%9D%E5%BC%8F%E8%AE%A1%E7%AE%97&color=green)](https://openbayes.com/console/public/tutorials/A4ac4xNrUCQ) [![DINOv3 Official](https://img.shields.io/badge/🔥_Official_DINOv3-Integrated-red)](DINOV3_OFFICIAL_GUIDE.md) [![Custom Input](https://img.shields.io/badge/⚡_--dino--input-FULLY_WORKING-brightgreen)](DINO_INPUT_GUIDE.md)
+
+---
+
+## 🚀 Quick Start for New Users
+
+**Get started in 5 minutes!** Choose your path:
+
+### 📦 **Fast Installation (GitHub)**
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/Sompote/DINOV3-YOLOV12.git
+cd DINOV3-YOLOV12
+conda create -n dinov3-yolov12 python=3.11 -y
+conda activate dinov3-yolov12
+
+# 2. Install dependencies
+pip install -r requirements.txt transformers
+pip install -e .
+
+# 3. Setup Hugging Face token (REQUIRED for DINOv3)
+export HUGGINGFACE_HUB_TOKEN="your_token_here"
+# Get token: https://huggingface.co/settings/tokens
+# Permissions: Read access to repos + public gated repos
+
+# 4. Quick test - Pure YOLOv12 (fastest, no DINO)
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size s \
+    --epochs 5 \
+    --name quick_test
+```
+
+### 🎯 **Choose Your Training Mode**
+
+#### **Option 1: Pure YOLOv12 (Fastest, No DINO)**
+```bash
+# Best for: Speed, production, baseline comparison
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size s \
+    --epochs 100 \
+    --name pure_yolov12
+```
+
+#### **Option 2: Single Integration (🌟 Recommended for Beginners)**
+```bash
+# Best for: Stable training, most balanced enhancement
+# +3-8% mAP improvement with minimal overhead
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size s \
+    --dino-variant vitb16 \
+    --integration single \
+    --epochs 100 \
+    --name stable_enhancement
+```
+
+#### **Option 3: Dual Integration (🎪 High Performance)**
+```bash
+# Best for: Complex scenes, small objects
+# +10-18% mAP improvement, 2x training time
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size s \
+    --dino-variant vitb16 \
+    --integration dual \
+    --epochs 100 \
+    --batch-size 8 \
+    --name high_performance
+```
+
+### 🎨 **Interactive Demo (No Training Required)**
+
+```bash
+# Launch web interface
+python launch_streamlit.py
+# Open browser: http://localhost:8501
+# Upload images and pre-trained models for instant detection!
+```
+
+### 📊 **Quick Selection Guide**
+
+| Your Goal | Use This Command | Training Time | Memory |
+|:----------|:----------------|:--------------|:-------|
+| **Fast baseline** | Pure YOLOv12 (no `--dino-variant`) | 2hrs | 3GB |
+| **Balanced enhancement** 🌟 | `--integration single` | 3hrs | 6GB |
+| **Maximum accuracy** | `--integration dual` | 5hrs | 10GB |
+
+### ⚡ **Next Steps**
+
+1. **Read the [Complete Installation Guide](#-installation)** for detailed setup
+2. **Explore [Training Options](#-training)** for advanced configurations
+3. **Check [Model Zoo](#-model-zoo)** for pre-trained models
+4. **Try [Resume Training](#-resume-training-from-checkpoint---enhanced-train_resumepy)** for continuing interrupted training
+
+### 🆘 **Common Issues**
+
+**Problem: "No validation data"**
+```bash
+# Make sure your data.yaml has correct paths
+val: valid/images  # or ../valid/images
+```
+
+**Problem: "HUGGINGFACE_HUB_TOKEN not found"**
+```bash
+# Set your token
+export HUGGINGFACE_HUB_TOKEN="hf_your_token_here"
+```
+
+**Problem: "NaN loss"**
+```bash
+# Reduce batch size and learning rate
+--batch-size 16 --lr 0.005
+```
+
+---
 
 ## Updates
 
