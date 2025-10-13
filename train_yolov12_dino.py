@@ -946,17 +946,23 @@ def modify_yaml_config_for_custom_dino(config_path, dino_input, yolo_size='s', u
 
 def load_partial_yolo_weights(target_model, weight_path, integration=None, yolo_size=None):
     """
-    Load base YOLO weights into a dualp0p3 model starting from layers after the DINO backbone (P4 onwards).
-    This preserves randomly initialized weights for the P0-P3 pipeline that interacts with DINO.
+    Load base YOLO weights into a model with DINO integration.
+
+    Strategy:
+    - single: Load weights starting after DINO3Preprocessor (P0 input preprocessing)
+    - dualp0p3: Load weights starting after DINO3Backbone (P0+P3 integration)
+    - dual: Load weights starting after last DINO3Backbone (P3+P4 integration)
+    - triple: Load weights starting after last DINO3Backbone (P0+P3+P4 integration)
+
+    This preserves randomly initialized weights for layers that interact with DINO.
     """
     if not weight_path:
         return
 
     print(f"🧩 Applying partial YOLO pretraining from: {weight_path}")
-    if integration != 'dualp0p3':
-        print(f"   ⚠️  Requested integration '{integration}' differs from dualp0p3. Proceeding with best effort.")
+    print(f"   🔧 Integration type: {integration}")
     if yolo_size and yolo_size.lower() != 'l':
-        print(f"   ⚠️  Expected YOLOv12l for optimal alignment but received '{yolo_size}'. Ensure compatibility.")
+        print(f"   ⚠️  Base weights from size '{yolo_size}' may differ from expected YOLOv12l. Ensure compatibility.")
 
     try:
         source_model = YOLO(weight_path)
@@ -967,16 +973,63 @@ def load_partial_yolo_weights(target_model, weight_path, integration=None, yolo_
     target_layers = list(target_model.model.model)
     source_layers = list(source_model.model.model)
     base_idx = 0
-    encountered_dino_backbone = False
     loaded_layers = 0
     skipped_layers = 0
     total_params = 0
     mismatched_layers = []
 
+    # Determine when to start loading weights based on integration type
+    should_load_weights = False
+    dino_layers_passed = 0
+
+    # Count total DINO layers for reference
+    total_dino_preprocessors = sum(1 for layer in target_layers if isinstance(layer, DINO3Preprocessor))
+    total_dino_backbones = sum(1 for layer in target_layers if isinstance(layer, DINO3Backbone))
+
+    print(f"   📊 Target model has {total_dino_preprocessors} DINO3Preprocessor(s) and {total_dino_backbones} DINO3Backbone(s)")
+
+    # Define strategy for each integration type
+    if integration == 'single':
+        # Single integration: P0 preprocessing only, start loading after DINO3Preprocessor
+        trigger_after = 'DINO3Preprocessor'
+        print(f"   📐 Strategy: Load weights after DINO3Preprocessor (P0 input preprocessing)")
+    elif integration == 'dualp0p3':
+        # DualP0P3: P0+P3, start loading after DINO3Backbone
+        trigger_after = 'DINO3Backbone'
+        print(f"   📐 Strategy: Load weights after DINO3Backbone (P0+P3 integration)")
+    elif integration in ['dual', 'triple']:
+        # Dual/Triple: Multiple backbones, start loading after last DINO3Backbone
+        trigger_after = 'last_DINO3Backbone'
+        print(f"   📐 Strategy: Load weights after last DINO3Backbone ({integration} integration)")
+    else:
+        # Unknown integration, use conservative approach
+        trigger_after = 'DINO3Backbone'
+        print(f"   ⚠️  Unknown integration '{integration}', using DINO3Backbone as trigger")
+
     for layer in target_layers:
-        if isinstance(layer, (DINO3Preprocessor, DINO3Backbone)):
-            if isinstance(layer, DINO3Backbone):
-                encountered_dino_backbone = True
+        # Track DINO layers
+        is_dino_layer = isinstance(layer, (DINO3Preprocessor, DINO3Backbone))
+
+        if is_dino_layer:
+            if isinstance(layer, DINO3Preprocessor):
+                print(f"   🔍 Layer {len(target_layers[:target_layers.index(layer)])}: DINO3Preprocessor (skipping)")
+            elif isinstance(layer, DINO3Backbone):
+                dino_layers_passed += 1
+                print(f"   🔍 Layer {len(target_layers[:target_layers.index(layer)])}: DINO3Backbone #{dino_layers_passed} (skipping)")
+
+            # Check if we should start loading weights after this DINO layer
+            if trigger_after == 'DINO3Preprocessor' and isinstance(layer, DINO3Preprocessor):
+                should_load_weights = True
+                print(f"   ✅ Trigger reached: Starting weight loading after DINO3Preprocessor")
+            elif trigger_after == 'DINO3Backbone' and isinstance(layer, DINO3Backbone):
+                should_load_weights = True
+                print(f"   ✅ Trigger reached: Starting weight loading after DINO3Backbone")
+            elif trigger_after == 'last_DINO3Backbone' and isinstance(layer, DINO3Backbone):
+                # For dual/triple, only trigger after the LAST backbone
+                if dino_layers_passed == total_dino_backbones:
+                    should_load_weights = True
+                    print(f"   ✅ Trigger reached: Starting weight loading after last DINO3Backbone")
+
             continue
 
         if base_idx >= len(source_layers):
@@ -984,7 +1037,7 @@ def load_partial_yolo_weights(target_model, weight_path, integration=None, yolo_
 
         source_layer = source_layers[base_idx]
 
-        if encountered_dino_backbone:
+        if should_load_weights:
             source_state = source_layer.state_dict()
             target_state = layer.state_dict()
 
@@ -1011,7 +1064,7 @@ def load_partial_yolo_weights(target_model, weight_path, integration=None, yolo_
 
         base_idx += 1
 
-    print(f"   ✅ Loaded weights into {loaded_layers} layers (skipped {skipped_layers} before DINO)")
+    print(f"   ✅ Loaded weights into {loaded_layers} layers (skipped {skipped_layers} DINO + pre-DINO layers)")
     print(f"   📦 Total parameters updated: {total_params:,}")
     if mismatched_layers:
         print(f"   ⚠️  Layers with shape mismatches (skipped): {mismatched_layers}")
