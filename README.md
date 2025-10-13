@@ -46,10 +46,20 @@ conda activate dinov3-yolov12
 pip install -r requirements.txt transformers
 pip install -e .
 
-# 3. Setup Hugging Face token (REQUIRED for DINOv3)
+# 3. Setup Hugging Face authentication (REQUIRED for DINOv3)
+# Method 1: Environment variable (recommended)
 export HUGGINGFACE_HUB_TOKEN="your_token_here"
 # Get token: https://huggingface.co/settings/tokens
 # Permissions: Read access to repos + public gated repos
+
+# Method 2: Interactive login
+huggingface-cli login
+# Enter your token when prompted (input will be hidden)
+# Token will be saved for future use
+
+# Verify authentication
+huggingface-cli whoami
+# Should show your username if authenticated correctly
 
 # 4. Quick test - Pure YOLOv12 (fastest, no DINO)
 python train_yolov12_dino.py \
@@ -130,10 +140,23 @@ python launch_streamlit.py
 val: valid/images  # or ../valid/images
 ```
 
-**Problem: "HUGGINGFACE_HUB_TOKEN not found"**
+**Problem: "HUGGINGFACE_HUB_TOKEN not found" or "401 Unauthorized"**
 ```bash
-# Set your token
+# Solution 1: Environment variable
 export HUGGINGFACE_HUB_TOKEN="hf_your_token_here"
+
+# Solution 2: Interactive login (easier)
+huggingface-cli login
+# Enter your token and press Enter
+
+# Verify it works
+huggingface-cli whoami
+
+# If still failing, get a new token:
+# 1. Visit: https://huggingface.co/settings/tokens
+# 2. Create new token with permissions:
+#    - Read access to repos
+#    - Read access to public gated repos
 ```
 
 **Problem: "NaN loss"**
