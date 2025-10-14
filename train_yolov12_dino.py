@@ -427,11 +427,16 @@ def create_model_config_path(yolo_size, dinoversion=None, dino_variant=None, int
                 print(f"   📄 Using variant-matched dual config as dualp0p3 fallback: yolov12{yolo_size}-dino3-{dino_variant}-dual.yaml")
                 print(f"   ⚠️  WARNING: This is dual (P3+P4) integration, not true dualp0p3 (P0+P3)!")
                 return fallback_config
-            # Last resort: vitb16 dual config
+            # Last resort: Use vitb16 dual config as base template, but will be modified with user's variant via --dino-input
+            # This ensures user's specified variant (e.g., vits16) is respected through dynamic config modification
             fallback_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-vitb16-dual.yaml'
             if Path(fallback_config).exists():
-                print(f"   📄 Using vitb16 dual config as dualp0p3 fallback: yolov12{yolo_size}-dino3-vitb16-dual.yaml")
-                return fallback_config
+                print(f"   📄 Using dual config as base template for dualp0p3 fallback: yolov12{yolo_size}-dino3-vitb16-dual.yaml")
+                print(f"   🔧 Config will be modified to use '{dino_variant}' variant via --dino-input")
+                print(f"   ⚠️  NOTE: This fallback will respect your --dino-variant={dino_variant} specification")
+                # Signal that dynamic config modification is needed by returning a special marker
+                # The main() function will detect this and apply modify_yaml_config_for_custom_dino()
+                return ('NEEDS_VARIANT_REPLACEMENT', fallback_config, dino_variant)
         
         # Use scale-corrected configs for better channel handling
         scale_corrected_config = f'ultralytics/cfg/models/v12/yolov12{yolo_size}-dino3-scale-corrected.yaml'
@@ -1102,7 +1107,21 @@ def main():
     model_config = create_model_config_path(
         args.yolo_size, args.dinoversion, args.dino_variant, args.integration, args.dino_input
     )
-    
+
+    # Handle special case: fallback config needs variant replacement
+    # This happens when user specifies a variant (like vits16) but no specific config exists
+    needs_variant_replacement = False
+    if isinstance(model_config, tuple) and model_config[0] == 'NEEDS_VARIANT_REPLACEMENT':
+        needs_variant_replacement = True
+        _, base_config, desired_variant = model_config
+        model_config = base_config
+        # Automatically set args.dino_input to use the desired variant for dynamic config modification
+        if not args.dino_input:
+            # Convert variant name to dinov3 model name (e.g., vits16 -> dinov3_vits16)
+            args.dino_input = f"dinov{args.dinoversion}_{desired_variant}"
+            print(f"🔧 Automatically setting --dino-input to: {args.dino_input}")
+            print(f"   This will replace hardcoded vitb16 with your specified variant: {desired_variant}")
+
     # Create experiment name
     experiment_name = create_experiment_name(args)
     
