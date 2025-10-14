@@ -658,6 +658,7 @@ class Metric(SimpleClass):
         self.all_ap = []  # (nc, 10)
         self.ap_class_index = []  # (nc, )
         self.nc = 0
+        self._fitness_weights = np.array([0.0, 0.0, 0.1, 0.9], dtype=float)
 
     @property
     def ap50(self):
@@ -747,8 +748,19 @@ class Metric(SimpleClass):
 
     def fitness(self):
         """Model fitness as a weighted combination of metrics."""
-        w = [0.0, 0.0, 0.1, 0.9]  # weights for [P, R, mAP@0.5, mAP@0.5:0.95]
-        return (np.array(self.mean_results()) * w).sum()
+        return (np.array(self.mean_results()) * self._fitness_weights).sum()
+
+    def set_fitness_weights(self, map50_weight=0.1, map_weight=None):
+        """
+        Override the default fitness weighting.
+
+        Args:
+            map50_weight (float): Weight applied to mAP@0.5.
+            map_weight (float, optional): Weight applied to mAP@0.5:0.95. If None, uses (1 - map50_weight).
+        """
+        if map_weight is None:
+            map_weight = 1.0 - map50_weight
+        self._fitness_weights = np.array([0.0, 0.0, float(map50_weight), float(map_weight)], dtype=float)
 
     def update(self, results):
         """
@@ -874,6 +886,10 @@ class DetMetrics(SimpleClass):
     def fitness(self):
         """Returns the fitness of box object."""
         return self.box.fitness()
+
+    def set_fitness_weights(self, map50_weight=0.1, map_weight=None):
+        """Update fitness weighting for this metrics group."""
+        self.box.set_fitness_weights(map50_weight, map_weight)
 
     @property
     def ap_class_index(self):

@@ -513,6 +513,8 @@ def parse_arguments():
                        help='Pretrained YOLO checkpoint to load (.pt file)')
     parser.add_argument('--pretrainyolo', type=str, default=None,
                        help='Load base YOLO weights partially for dualp0p3 integration (P4 and above)')
+    parser.add_argument('--fitness', type=float, default=0.1,
+                       help='Weight for mAP@0.5 when computing best-model fitness (0.0-1.0, remainder applied to mAP@0.5:0.95)')
     
     # Training parameters
     parser.add_argument('--epochs', type=int, default=None,
@@ -712,6 +714,9 @@ def validate_arguments(args):
         if args.yolo_size.lower() != 'l':
             LOGGER.warning("⚠️  --pretrainyolo support is tuned for YOLOv12l; ensure weight compatibility.")
         LOGGER.info(f"Using base YOLO pretraining weights: {args.pretrainyolo}")
+
+    if not 0.0 <= args.fitness <= 1.0:
+        raise ValueError("--fitness must be between 0.0 and 1.0 (inclusive)")
 
     if args.pretrain:
         if not os.path.exists(args.pretrain):
@@ -1152,6 +1157,7 @@ def main():
     print(f"   Warmup: {args.warmup_epochs} epochs")
     print(f"   Label Smoothing: {args.label_smoothing}")
     print(f"   Mixed Precision: {'Enabled' if args.amp else 'Disabled'}")
+    print(f"   Fitness Weights: mAP@0.5={args.fitness:.3f}, mAP@0.5:0.95={(1.0 - args.fitness):.3f}")
     if args.grad_clip > 0:
         print(f"   Gradient Clipping: {args.grad_clip}")
     print()

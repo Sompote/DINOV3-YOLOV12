@@ -38,6 +38,14 @@ class DetectionValidator(BaseValidator):
         self.class_map = None
         self.args.task = "detect"
         self.metrics = DetMetrics(save_dir=self.save_dir, on_plot=self.on_plot)
+        fitness_weight = getattr(self.args, "fitness", None)
+        if fitness_weight is not None:
+            try:
+                fitness_weight = float(fitness_weight)
+                complementary = 1.0 - fitness_weight
+                self.metrics.set_fitness_weights(fitness_weight, complementary)
+            except (TypeError, ValueError):
+                LOGGER.warning(f"⚠️  Invalid fitness weight '{fitness_weight}', using defaults (0.1/0.9)")
         self.iouv = torch.linspace(0.5, 0.95, 10)  # IoU vector for mAP@0.5:0.95
         self.niou = self.iouv.numel()
         self.lb = []  # for autolabelling
