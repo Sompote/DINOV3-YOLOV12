@@ -239,6 +239,7 @@ YOLOv12 surpasses all popular real-time object detectors in accuracy with compet
 | | `--unfreeze-dino` | flag | False | Make DINO weights trainable | `--unfreeze-dino` |
 | **Pretraining** | `--pretrain` | str | None | Resume full YOLO checkpoint (architecture + optimizer) | `--pretrain runs/detect/exp/weights/last.pt` |
 | | `--pretrainyolo` | str | None | Seed dualp0p3 P4+ layers from a base YOLO weight file | `--pretrainyolo yolov12l.pt` |
+| **Evaluation** | `--fitness` | float | 0.1 | Weight on mAP@0.5 for best-model fitness (1-weight applied to mAP@0.5:0.95) | `--fitness 0.5` |
 | **Training Control** | `--lr` | float | 0.01 | Learning rate | `--lr 0.005` |
 | | `--lrf` | float | 0.01 | Final learning rate | `--lrf 0.1` |
 | | `--optimizer` | str | 'SGD' | Optimizer (SGD,Adam,AdamW) | `--optimizer AdamW` |
@@ -261,6 +262,7 @@ YOLOv12 surpasses all popular real-time object detectors in accuracy with compet
 | | `--seed` | int | 0 | Random seed | `--seed 42` |
 
 > **Pretrain Flags:** `--pretrain` resumes an existing YOLO/DINO checkpoint end‑to‑end, while `--pretrainyolo` gives new dualp0p3 runs a YOLO backbone head start without touching the DINO-enhanced front half.
+> **Fitness Flag:** `--fitness` controls how best-model selection balances mAP@0.5 vs. mAP@0.5:0.95 (e.g., `--fitness 0.5` weights them equally).
 
 ### 🎯 **Training Results Summary Format**
 
