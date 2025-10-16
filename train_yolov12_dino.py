@@ -81,6 +81,7 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
 from ultralytics import YOLO
+from ultralytics.data.utils import check_det_dataset
 from ultralytics.nn.modules.block import DINO3Backbone, DINO3Preprocessor
 from ultralytics.utils import LOGGER
 import yaml
@@ -1098,13 +1099,26 @@ def main():
             args.fraction = adjusted_fraction
 
     if args.val:
-        if not split_has_labels(args.data, 'val'):
-            print("⚠️  No label files found for validation split. Disabling validation to avoid crashes.")
+        validation_ready = split_has_labels(args.data, 'val')
+        if not validation_ready:
+            print("⚠️  No label files found for validation split.")
+            print("🔄 Attempting dataset autodownload before disabling validation...")
+            try:
+                check_det_dataset(args.data, autodownload=True)
+                validation_ready = split_has_labels(args.data, 'val')
+            except Exception as exc:
+                print(f"⚠️  Dataset autodownload attempt failed: {exc}")
+                validation_ready = False
+
+        if validation_ready:
+            print("✅ Validation split contains label files.")
+            if hasattr(args, 'eval_val') and not args.eval_val:
+                args.eval_val = True
+        else:
+            print("⚠️  Validation data remains unavailable. Disabling validation to avoid crashes.")
             args.val = False
             if hasattr(args, 'eval_val'):
                 args.eval_val = False
-        else:
-            print("✅ Validation split contains label files.")
     else:
         print("ℹ️  Validation disabled by configuration.")
     
