@@ -1098,27 +1098,12 @@ def main():
         if adjusted_fraction != args.fraction:
             args.fraction = adjusted_fraction
 
+    # Skip pre-validation check - YOLO's internal dataset loader handles this correctly
+    # The split_has_labels() check was too strict and caused false negatives
     if args.val:
-        validation_ready = split_has_labels(args.data, 'val')
-        if not validation_ready:
-            print("⚠️  No label files found for validation split.")
-            print("🔄 Attempting dataset autodownload before disabling validation...")
-            try:
-                check_det_dataset(args.data, autodownload=True)
-                validation_ready = split_has_labels(args.data, 'val')
-            except Exception as exc:
-                print(f"⚠️  Dataset autodownload attempt failed: {exc}")
-                validation_ready = False
-
-        if validation_ready:
-            print("✅ Validation split contains label files.")
-            if hasattr(args, 'eval_val') and not args.eval_val:
-                args.eval_val = True
-        else:
-            print("⚠️  Validation data remains unavailable. Disabling validation to avoid crashes.")
-            args.val = False
-            if hasattr(args, 'eval_val'):
-                args.eval_val = False
+        print("✅ Validation enabled - YOLO will verify data availability during initialization")
+        if hasattr(args, 'eval_val') and not args.eval_val:
+            args.eval_val = True
     else:
         print("ℹ️  Validation disabled by configuration.")
     
