@@ -177,15 +177,7 @@ huggingface-cli whoami
 - **🎯 Better Generalization**: Excellent performance on unseen data with limited training samples
 - **🧠 Rich Feature Extraction**: DINO's self-supervised learning provides superior visual understanding
 
-**📊 Small Dataset Performance (Construction PPE - 1,000 images):**
 
-| Model Type | Integration | DINO Variant | mAP@50 | Training Time | Memory | Best For |
-|:-----------|:------------|:-------------|:-------|:--------------|:-------|:---------|
-| **Pure YOLOv12-s** | None | None | 0.382 | 2hrs | 3GB | Baseline |
-| **DINO Single ViT-S** | single | vits16 | **0.479** | 2.5hrs | 4GB | **Best small dataset** |
-| **DINO Single ViT-B** | single | vitb16 | 0.465 | 3hrs | 6GB | Balanced |
-| **DINO Dual ViT-S** | dual | vits16 | 0.458 | 4hrs | 7GB | Complex scenes |
-| **DINO ConvNeXt-S** | single | convnext_small | 0.472 | 3.5hrs | 5GB | CNN-ViT hybrid |
 
 ### 🏆 **Comprehensive Baseline Performance Comparison**
 
@@ -235,37 +227,7 @@ huggingface-cli whoami
 - **Single integration** provides the best stability-to-performance ratio
 - **ConvNeXt variants** offer excellent CNN-ViT hybrid performance
 
-### 🏗️ **Construction PPE Dataset: Real-World Results**
 
-**📋 Dataset Specifications:**
-- **Source**: [Ultralytics Construction-PPE v8.3.197](https://docs.ultralytics.com/datasets/detect/construction-ppe/)
-- **Classes**: 11 classes (helmet, gloves, vest, boots, goggles, person, no_helmet, no_goggles, no_gloves, no_boots, none)
-- **Training Images**: ~1,000 images
-- **Validation Images**: ~200 images
-
-**🏆 Model Performance Comparison:**
-
-| Model | Integration | DINO Variant | mAP@50 | mAP@50:95 | Parameters | Training Time |
-|:------|:------------|:-------------|:-------|:----------|:-----------|:--------------|
-| **YOLOv12-s (Base)** | None | None | 0.382 | 0.215 | 8.2M | 2hrs |
-| **YOLOv12-s + DINO-S** | single | vits16 | 0.479 | 0.287 | 10.5M | 2.5hrs |
-| **YOLOv12-s + DINO-B** | single | vitb16 | 0.465 | 0.278 | 12.8M | 3hrs |
-| **YOLOv12-s + ConvNeXt** | single | convnext_small | 0.472 | 0.282 | 11.2M | 3.5hrs |
-| **🏆 YOLOv12-s + DINO-S (Best)** | single | vits16 | **0.519** | **0.312** | 10.5M | 2.5hrs |
-
-**📊 Construction PPE vs Baseline Performance:**
-
-| Dataset | Best Model | mAP@0.5 | Baseline YOLOv12 | Improvement |
-|:--------|:-----------|:---------|:------------------|:------------|
-| **Construction PPE** | S-vits16-single | 0.519 | 0.382 | **+35.9%** |
-| **General Dataset** | M-vitl16-dualp0p3 | 0.5577 | 0.4904 | **+13.7%** |
-| **Small Dataset** | S-vitb16-single | 0.4914 | 0.4854 | **+1.2%** |
-
-**🎯 Key Takeaways:**
-- **Small datasets benefit most** from DINO pre-training (+35.9% improvement)
-- **General datasets** see significant but smaller gains (+13.7% improvement)
-- **DINO pre-training provides consistent improvements** across all dataset sizes
-- **Integration strategy matters**: DualP0P3 for general datasets, Single for small datasets
 
 **🎯 Best Model Configuration for Construction PPE:**
 ```bash
