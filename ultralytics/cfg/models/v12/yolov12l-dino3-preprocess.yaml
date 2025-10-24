@@ -1,21 +1,21 @@
 # YOLOv12l with DINOv3 Preprocessing - Original YOLOv12 architecture with DINO before P0
 # Architecture: Input -> DINO3Preprocessor -> Original YOLOv12
 
-nc: 80  # number of classes
-scale: l  # FORCE large scale
+nc: 80 # number of classes
+scale: l # FORCE large scale
 
 scales: # model compound scaling constants
   # [depth, width, max_channels]
-  n: [0.50, 0.25, 1024]   # YOLOv12n summary: 225 layers,  3157200 parameters,  3157184 gradients,   8.9 GFLOPs
-  s: [0.50, 0.50, 1024]   # YOLOv12s summary: 225 layers, 11166560 parameters, 11166544 gradients,  29.7 GFLOPs
-  m: [0.67, 0.75, 768]    # YOLOv12m summary: 295 layers, 21172000 parameters, 21171984 gradients,  48.5 GFLOPs
-  l: [1.00, 1.00, 512]    # YOLOv12l summary: 365 layers, 43691520 parameters, 43691504 gradients,  86.9 GFLOPs
-  x: [1.00, 1.25, 512]    # YOLOv12x summary: 365 layers, 68229648 parameters, 68229632 gradients, 135.4 GFLOPs
+  n: [0.50, 0.25, 1024] # YOLOv12n summary: 225 layers,  3157200 parameters,  3157184 gradients,   8.9 GFLOPs
+  s: [0.50, 0.50, 1024] # YOLOv12s summary: 225 layers, 11166560 parameters, 11166544 gradients,  29.7 GFLOPs
+  m: [0.67, 0.75, 768] # YOLOv12m summary: 295 layers, 21172000 parameters, 21171984 gradients,  48.5 GFLOPs
+  l: [1.00, 1.00, 512] # YOLOv12l summary: 365 layers, 43691520 parameters, 43691504 gradients,  86.9 GFLOPs
+  x: [1.00, 1.25, 512] # YOLOv12x summary: 365 layers, 68229648 parameters, 68229632 gradients, 135.4 GFLOPs
 
 backbone:
   # [from, repeats, module, args] - DINO3 Preprocessor followed by exact YOLOv12 backbone
-  - [-1, 1, DINO3Preprocessor, ['DINO_MODEL_NAME', False, 3]]  # 0: Input -> Enhanced input (3 channels)
-  - [-1, 1, Conv, [64, 3, 2]]  # 1-P1/2
+  - [-1, 1, DINO3Preprocessor, ["DINO_MODEL_NAME", True, 3]] # 0: Input -> Enhanced input (3 channels)
+  - [-1, 1, Conv, [64, 3, 2]] # 1-P1/2
   - [-1, 1, Conv, [128, 3, 2, 1, 2]] # 2-P2/4
   - [-1, 2, C3k2, [256, False, 0.25]] # 3
   - [-1, 1, Conv, [256, 3, 2, 1, 4]] # 4-P3/8

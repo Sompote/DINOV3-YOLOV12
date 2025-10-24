@@ -24,7 +24,7 @@ backbone:
   - [-1, 6, C3k2, [512, False, 0.25]]  # 5: Standard P3 (128→256 channels with s scaling: 512*0.5=256)
   
   # DINO integration at P3 level - maintain exact same channel count for YOLOv12s
-  - [-1, 1, DINO3Backbone, ['dinov3_vitl16', False, 256]]  # 6: DINO enhanced P3 (256→256 channels)
+  - [-1, 1, DINO3Backbone, ['dinov3_vitl16', True, 256]]  # 6: DINO enhanced P3 (256→256 channels)
   
   # Continue standard YOLOv12s backbone 
   - [-1, 1, Conv, [512, 3, 2]] # 7-P4/16 (256→256 channels with s scaling: 512*0.5=256)

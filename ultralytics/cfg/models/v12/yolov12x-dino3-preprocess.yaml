@@ -2,8 +2,8 @@
 # Architecture: Input -> DINO3Preprocessor -> Original YOLOv12x
 # Uses original YOLOv12x architecture with DINO preprocessing at input level
 
-nc: 80  # number of classes
-scale: x  # force extra large scale
+nc: 80 # number of classes
+scale: x # force extra large scale
 
 scales: # model compound scaling constants (from standard yolov12.yaml)
   # [depth, width, max_channels]
@@ -15,8 +15,8 @@ scales: # model compound scaling constants (from standard yolov12.yaml)
 
 backbone:
   # [from, repeats, module, args] - DINO3 Preprocessor followed by exact YOLOv12x backbone
-  - [-1, 1, DINO3Preprocessor, ['DINO_MODEL_NAME', False, 3]]  # 0: Input enhancement (3 channels)
-  - [-1, 1, Conv, [64, 3, 2]]  # 1-P1/2 (3->96 channels with x scaling)
+  - [-1, 1, DINO3Preprocessor, ["DINO_MODEL_NAME", True, 3]] # 0: Input enhancement (3 channels)
+  - [-1, 1, Conv, [64, 3, 2]] # 1-P1/2 (3->96 channels with x scaling)
   - [-1, 1, Conv, [128, 3, 2, 1, 2]] # 2-P2/4 (96->192 channels with x scaling)
   - [-1, 2, C3k2, [256, False, 0.25]] # 3 (192->384 channels with x scaling)
   - [-1, 1, Conv, [256, 3, 2, 1, 4]] # 4-P3/8 (384->384 channels with x scaling)

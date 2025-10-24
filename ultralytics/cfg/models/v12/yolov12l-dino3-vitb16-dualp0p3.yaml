@@ -2,35 +2,35 @@
 # Architecture: Input -> DINO3Preprocessor -> YOLOv12 -> DINO3(P3) -> Head
 # Optimized dual enhancement targeting P0 input and P3 backbone levels
 
-nc: 80  # number of classes
-scale: l  # force large scale
+nc: 80 # number of classes
+scale: l # force large scale
 
 scales: # model compound scaling constants
   # [depth, width, max_channels]
-  n: [0.50, 0.25, 1024]   # YOLOv12n summary: 225 layers,  3157200 parameters,  3157184 gradients,   8.9 GFLOPs
-  s: [0.50, 0.50, 1024]   # YOLOv12s summary: 225 layers, 11166560 parameters, 11166544 gradients,  29.7 GFLOPs
-  m: [0.67, 0.75, 768]    # YOLOv12m summary: 295 layers, 21172000 parameters, 21171984 gradients,  48.5 GFLOPs
-  l: [1.00, 1.00, 512]    # YOLOv12l summary: 365 layers, 43691520 parameters, 43691504 gradients,  86.9 GFLOPs
-  x: [1.00, 1.25, 512]    # YOLOv12x summary: 365 layers, 68229648 parameters, 68229632 gradients, 135.4 GFLOPs
+  n: [0.50, 0.25, 1024] # YOLOv12n summary: 225 layers,  3157200 parameters,  3157184 gradients,   8.9 GFLOPs
+  s: [0.50, 0.50, 1024] # YOLOv12s summary: 225 layers, 11166560 parameters, 11166544 gradients,  29.7 GFLOPs
+  m: [0.67, 0.75, 768] # YOLOv12m summary: 295 layers, 21172000 parameters, 21171984 gradients,  48.5 GFLOPs
+  l: [1.00, 1.00, 512] # YOLOv12l summary: 365 layers, 43691520 parameters, 43691504 gradients,  86.9 GFLOPs
+  x: [1.00, 1.25, 512] # YOLOv12x summary: 365 layers, 68229648 parameters, 68229632 gradients, 135.4 GFLOPs
 
 backbone:
   # [from, repeats, module, args] - DualP0P3: P0 Preprocessing + P3 Backbone Enhancement
   # YOLOv12l channel progression with 1.0 width scaling: 3→64→128→256→256→512→512→512→512→512
-  - [-1, 1, DINO3Preprocessor, ['dinov3_vitb16', True, 3]]  # 0: P0 Input preprocessing (3→3 channels)
-  - [-1, 1, Conv, [64, 3, 2]]  # 1-P1/2 (3→64 channels with l scaling: 64*1.0=64)
+  - [-1, 1, DINO3Preprocessor, ["dinov3_vitb16", True, 3]] # 0: P0 Input preprocessing (3→3 channels)
+  - [-1, 1, Conv, [64, 3, 2]] # 1-P1/2 (3→64 channels with l scaling: 64*1.0=64)
   - [-1, 1, Conv, [128, 3, 2, 1, 2]] # 2-P2/4 (64→128 channels with l scaling: 128*1.0=128)
-  - [-1, 2, C3k2, [256, False, 0.25]]  # 3 (128→256 channels with l scaling: 256*1.0=256)
+  - [-1, 2, C3k2, [256, False, 0.25]] # 3 (128→256 channels with l scaling: 256*1.0=256)
   - [-1, 1, Conv, [256, 3, 2, 1, 4]] # 4-P3/8 (256→256 channels with l scaling: 256*1.0=256)
-  - [-1, 2, C3k2, [512, False, 0.25]]  # 5: Standard P3 (256→512 channels with l scaling: 512*1.0=512)
-  
+  - [-1, 2, C3k2, [512, False, 0.25]] # 5: Standard P3 (256→512 channels with l scaling: 512*1.0=512)
+
   # DINO integration at P3 level - maintain exact same channel count for YOLOv12l
-  - [-1, 1, DINO3Backbone, ['dinov3_vitb16', False, 512]]  # 6: DINO enhanced P3 (512→512 channels)
-  
-  # Continue standard YOLOv12l backbone 
+  - [-1, 1, DINO3Backbone, ["dinov3_vitb16", True, 512]] # 6: DINO enhanced P3 (512→512 channels)
+
+  # Continue standard YOLOv12l backbone
   - [-1, 1, Conv, [512, 3, 2]] # 7-P4/16 (512→512 channels with l scaling: 512*1.0=512)
-  - [-1, 4, A2C2f, [512, True, 4]]  # 8: Standard P4 (512→512 channels with l scaling: 512*1.0=512)
+  - [-1, 4, A2C2f, [512, True, 4]] # 8: Standard P4 (512→512 channels with l scaling: 512*1.0=512)
   - [-1, 1, Conv, [1024, 3, 2]] # 9-P5/32 (512→512 channels with l scaling: 1024*1.0=512, limited by max_channels=512)
-  - [-1, 4, A2C2f, [1024, True, 1]]  # 10: Standard P5 (512→512 channels with l scaling: 1024*1.0=512, limited by max_channels=512)
+  - [-1, 4, A2C2f, [1024, True, 1]] # 10: Standard P5 (512→512 channels with l scaling: 1024*1.0=512, limited by max_channels=512)
 
 # YOLOv12l head architecture (adjusted for P0+P3 DINO integration)
 head:
@@ -47,7 +47,7 @@ head:
   - [-1, 2, A2C2f, [512, False, -1]] # 19: P4/16-medium (768 → 512 channels with l scaling: 512*1.0=512)
 
   - [-1, 1, Conv, [512, 3, 2]] # 20: (512 → 512 channels with l scaling: 512*1.0=512)
-  - [[-1, 10], 1, Concat, [1]] # 21: cat head P5 (512 + 512 = 1024 channels) 
+  - [[-1, 10], 1, Concat, [1]] # 21: cat head P5 (512 + 512 = 1024 channels)
   - [-1, 2, C3k2, [1024, True]] # 22: P5/32-large (1024 → 512 channels with l scaling: 1024*1.0=512, limited by max_channels=512)
 
   - [[16, 19, 22], 1, Detect, [nc]] # 23: Detect(P3=256, P4=512, P5=512)

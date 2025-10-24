@@ -26,7 +26,7 @@ backbone:
   - [-1, 6, A2C2f, [512, True, 4]]  # 6: Standard P4 (128→128 channels with n scaling)
   
   # DINO integration at P4 level - maintain exact same channel count
-  - [-1, 1, DINO3Backbone, ['dinov3_vitb16', False, 128]]  # 7: DINO enhanced P4 (128→128 channels)
+  - [-1, 1, DINO3Backbone, ['dinov3_vitb16', True, 128]]  # 7: DINO enhanced P4 (128→128 channels)
   
   # Continue standard YOLOv12n backbone
   - [-1, 1, Conv, [1024, 3, 2]] # 8-P5/32 (128→256 channels with n scaling)

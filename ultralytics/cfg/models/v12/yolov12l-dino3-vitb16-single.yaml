@@ -2,8 +2,8 @@
 # Channel flow follows standard YOLOv12l exactly, with DINO at P4 level
 # YOLOv12l uses width scaling = 1.0, so all channels are standard size
 
-nc: 80  # number of classes
-scale: l  # force large scale
+nc: 80 # number of classes
+scale: l # force large scale
 
 scales: # model compound scaling constants (from standard yolov12.yaml)
   # [depth, width, max_channels]
@@ -17,20 +17,20 @@ backbone:
   # [from, repeats, module, args]
   # Standard YOLOv12l backbone - EXACT copy from yolov12.yaml with DINO insertion at P4
   # YOLOv12l channel progression: 3→64→128→256→256→512→512→512→1024→1024 (with l scaling)
-  - [-1, 1, Conv, [64, 3, 2]]  # 0-P1/2 (3→64 channels with l scaling)
+  - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2 (3→64 channels with l scaling)
   - [-1, 1, Conv, [128, 3, 2, 1, 2]] # 1-P2/4 (64→128 channels with l scaling)
-  - [-1, 2, C3k2, [256, False, 0.25]]  # 2 (128→256 channels with l scaling)
+  - [-1, 2, C3k2, [256, False, 0.25]] # 2 (128→256 channels with l scaling)
   - [-1, 1, Conv, [256, 3, 2, 1, 4]] # 3-P3/8 (256→256 channels with l scaling)
-  - [-1, 2, C3k2, [512, False, 0.25]]  # 4 (256→512 channels with l scaling)
+  - [-1, 2, C3k2, [512, False, 0.25]] # 4 (256→512 channels with l scaling)
   - [-1, 1, Conv, [512, 3, 2]] # 5-P4/16 (512→512 channels with l scaling)
-  - [-1, 4, A2C2f, [512, True, 4]]  # 6: Standard P4 (512→512 channels with l scaling)
-  
+  - [-1, 4, A2C2f, [512, True, 4]] # 6: Standard P4 (512→512 channels with l scaling)
+
   # DINO integration at P4 level - maintain exact same channel count
-  - [-1, 1, DINO3Backbone, ['dinov3_vitb16', False, 512]]  # 7: DINO enhanced P4 (512→512 channels)
-  
+  - [-1, 1, DINO3Backbone, ["dinov3_vitb16", True, 512]] # 7: DINO enhanced P4 (512→512 channels)
+
   # Continue standard YOLOv12l backbone
   - [-1, 1, Conv, [1024, 3, 2]] # 8-P5/32 (512→1024 channels with l scaling)
-  - [-1, 4, A2C2f, [1024, True, 1]]  # 9: Standard P5 (1024→1024 channels with l scaling)
+  - [-1, 4, A2C2f, [1024, True, 1]] # 9: Standard P5 (1024→1024 channels with l scaling)
 
 # Standard YOLOv12l head architecture
 head:
@@ -47,7 +47,7 @@ head:
   - [-1, 2, A2C2f, [512, False, -1]] # 18: P4/16-medium (768 → 512 channels with l scaling)
 
   - [-1, 1, Conv, [512, 3, 2]] # 19: (512 → 512 channels with l scaling)
-  - [[-1, 9], 1, Concat, [1]] # 20: cat head P5 (512 + 1024 = 1536 channels) 
+  - [[-1, 9], 1, Concat, [1]] # 20: cat head P5 (512 + 1024 = 1536 channels)
   - [-1, 2, C3k2, [1024, True]] # 21: P5/32-large (1536 → 1024 channels with l scaling)
 
   - [[15, 18, 21], 1, Detect, [nc]] # 22: Detect(P3=256, P4=512, P5=1024)

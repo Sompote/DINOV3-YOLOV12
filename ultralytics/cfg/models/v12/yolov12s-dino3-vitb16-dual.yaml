@@ -23,13 +23,13 @@ backbone:
   - [-1, 6, C3k2, [512, False, 0.25]]  # 4 (128→256 channels with s scaling)
   
   # FIRST DINO integration at P3 level (256 channels)
-  - [-1, 1, DINO3Backbone, ['dinov3_vitb16', False, 256]]  # 5: DINO enhanced P3 (256→256 channels)
+  - [-1, 1, DINO3Backbone, ['dinov3_vitb16', True, 256]]  # 5: DINO enhanced P3 (256→256 channels)
   
   - [-1, 1, Conv, [512, 3, 2]] # 6-P4/16 (256→256 channels with s scaling)
   - [-1, 6, A2C2f, [512, True, 4]]  # 7: Standard P4 (256→256 channels with s scaling, 256*0.5=128, 128%32=0 ✓)
   
   # SECOND DINO integration at P4 level (256 channels)
-  - [-1, 1, DINO3Backbone, ['dinov3_vitb16', False, 256]]  # 8: DINO enhanced P4 (256→256 channels)
+  - [-1, 1, DINO3Backbone, ['dinov3_vitb16', True, 256]]  # 8: DINO enhanced P4 (256→256 channels)
   
   # Continue standard YOLOv12s backbone
   - [-1, 1, Conv, [1024, 3, 2]] # 9-P5/32 (256→512 channels with s scaling)

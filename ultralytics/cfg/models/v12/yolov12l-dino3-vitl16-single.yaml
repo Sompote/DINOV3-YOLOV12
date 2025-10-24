@@ -27,7 +27,7 @@ backbone:
   - [-1, 4, A2C2f, [512, True, 4]]  # 6: Standard P4 (512→512 channels with l scaling)
   
   # DINO integration at P4 level - ViT-L/16 with 1024 embed_dim mapped to 512 channels
-  - [-1, 1, DINO3Backbone, ['dinov3_vitl16', False, 512]]  # 7: DINO enhanced P4 (512→512 channels)
+  - [-1, 1, DINO3Backbone, ['dinov3_vitl16', True, 512]]  # 7: DINO enhanced P4 (512→512 channels)
   
   # Continue standard YOLOv12l backbone
   - [-1, 1, Conv, [1024, 3, 2]] # 8-P5/32 (512→1024 channels with l scaling)
