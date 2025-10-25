@@ -1,7 +1,7 @@
 
 <div align="center">
 
-# 🚀 YOLOv12 + DINOv3 Vision Transformers - Systematic Architecture
+# 🚀 YOLO-DINO: YOLOv12-DINOv3 Hybrid Architecture for Data-Efficient Object Detection
 
 [![Python](https://img.shields.io/badge/Python-3.8+-3776ab?logo=python&logoColor=white)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org)
@@ -15,7 +15,7 @@
 [![Resume Training](https://img.shields.io/badge/🔄_EXACT_Resume-Perfect_Continuity-red)](.)
 [![Training State](https://img.shields.io/badge/⚡_State_Restoration-61_Hyperparams-brightgreen)](.)
 
-### 🆕 **NEW: Complete DINOv3-YOLOv12 Integration** - Systematic integration of YOLOv12 Turbo with Meta's DINOv3 Vision Transformers
+### 🆕 **Hybrid Architecture for Data-Efficient Detection** - Combining YOLOv12 Turbo speed with DINOv3 Vision Transformer power for superior performance on small datasets
 
 **5 YOLOv12 sizes** • **Official DINOv3 models** • **4 integration types** • **Input+Backbone enhancement** • **Single/Dual/Triple/DualP0P3 integration** • **50+ model combinations**
 
