@@ -177,6 +177,15 @@ huggingface-cli whoami
 - **🎯 Better Generalization**: Excellent performance on unseen data with limited training samples
 - **🧠 Rich Feature Extraction**: DINO's self-supervised learning provides superior visual understanding
 
+### 📊 **Dataset Size Impact on Performance**
+
+![Performance Comparison: Large vs Small Datasets](assets/Figure_1.png)
+
+**Key Findings:**
+- **📈 Large Datasets**: DINO pre-training provides slight performance improvements (~2-5% mAP increase)
+- **🚀 Small Datasets**: DINO pre-training delivers significant performance boosts (~15-25% mAP increase)
+- **💡 Insight**: The smaller your dataset, the more valuable DINO pre-trained weights become for improving model accuracy and generalization
+
 
 
 ### 🏆 **Comprehensive Baseline Performance Comparison**
