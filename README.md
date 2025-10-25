@@ -179,12 +179,15 @@ huggingface-cli whoami
 
 ### 📊 **Dataset Size Impact on Performance**
 
-![Performance Comparison: Large vs Small Datasets](assets/Figure_1.png)
-
 **Key Findings:**
 - **🚀 Small Datasets**: DINO pre-training delivers significant performance boosts (~15-25% mAP increase)
-- **📈 Large Datasets**: DINO pre-training provides slight performance improvements (~2-5% mAP increase) - based on COCO dataset
 - **💡 Insight**: The smaller your dataset, the more valuable DINO pre-trained weights become for improving model accuracy and generalization
+
+**Large Dataset Performance (COCO):**
+
+![Performance Comparison: Large vs Small Datasets](assets/Figure_1.png)
+
+- **📈 Large Datasets (COCO)**: DINO pre-training provides slight performance improvements (~2-5% mAP increase)
 
 
 
