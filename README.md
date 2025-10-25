@@ -177,21 +177,69 @@ huggingface-cli whoami
 - **🎯 Better Generalization**: Excellent performance on unseen data with limited training samples
 - **🧠 Rich Feature Extraction**: DINO's self-supervised learning provides superior visual understanding
 
-### 📊 **Dataset Size Impact on Performance**
+### 🚀 **Small Dataset Performance**
 
 **Key Findings:**
 - **🚀 Small Datasets**: DINO pre-training delivers significant performance boosts (~15-25% mAP increase)
 - **💡 Insight**: The smaller your dataset, the more valuable DINO pre-trained weights become for improving model accuracy and generalization
 
-**Large Dataset Performance (COCO):**
+**🔥 Key Insights:**
+- **+25% mAP improvement** with DINO ViT-S single integration on small datasets
+- **ViT-S16** outperforms larger models on small datasets due to better regularization
+- **Single integration** provides the best stability-to-performance ratio
+- **ConvNeXt variants** offer excellent CNN-ViT hybrid performance
 
-![Performance Comparison: Large vs Small Datasets](assets/Figure_1.png)
+**🎯 Best Model Configuration for Construction PPE (Small Dataset Example):**
+```bash
+# Optimal configuration for small dataset like Construction PPE
+python train_yolov12_dino.py \
+    --data construction_ppe.yaml \
+    --yolo-size s \
+    --dino-variant vits16 \
+    --integration single \
+    --epochs 50 \
+    --batch-size 16 \
+    --imgsz 640 \
+    --name construction_ppe_optimized
+```
 
+**📈 Performance Analysis:**
+- **🚀 35.9% mAP improvement** over base YOLOv12
+- **⚡ Fast convergence**: Optimal performance reached in 50 epochs
+- **💾 Memory efficient**: Only 4GB VRAM required
+- **🎯 Best for production**: Stable training with consistent results
+
+### 🔧 **Why DINO Pre-training Works Better on Small Datasets**
+
+**🧠 Self-Supervised Learning Advantage:**
+1. **Rich Feature Representation**: DINO learns universal visual features from millions of unlabeled images
+2. **Better Initialization**: Pre-trained weights provide excellent starting point, avoiding random initialization
+3. **Regularization Effect**: Pre-trained features act as a strong regularizer, preventing overfitting
+4. **Transfer Learning**: Features learned on diverse datasets transfer well to specific domains
+
+**📊 Small Dataset Training Strategy:**
+- **Use smaller DINO variants** (ViT-S/16, ViT-B/16) for better generalization
+- **Single integration** provides optimal stability
+- **Fewer epochs** (50-100) with **early stopping** based on validation loss
+- **Lower learning rates** (1e-4 to 1e-5) for fine-tuning
+- **Strong data augmentation** to maximize limited dataset usage
+
+**⚠️ Important Notes:**
+- Always use **`--integration single`** for datasets <2000 images
+- **Freeze DINO weights** initially (default) for stability
+- Consider **`--unfreeze-dino`** only after 20-30 epochs if performance plateaus
+- Monitor **validation mAP** closely to prevent overfitting
+
+---
+
+### 🏆 **Large Dataset Performance Comparison (COCO Dataset)**
+
+![Performance Comparison: Dataset Size Impact](assets/Figure_1.png)
+
+**📊 Dataset Size Impact:**
 - **📈 Large Datasets (COCO)**: DINO pre-training provides slight performance improvements (~2-5% mAP increase)
 
-
-
-### 🏆 **Comprehensive Baseline Performance Comparison**
+### 📊 **Comprehensive Baseline Performance Comparison (COCO)**
 
 **📊 mAP@0.5 Performance Rankings:**
 
@@ -232,55 +280,6 @@ huggingface-cli whoami
 - **For Speed-Accuracy Balance**: S-vitb16-triple (0.5363 mAP@0.5)
 - **For Resource Efficiency**: M-vitb16-dualp0p3 (0.5239 mAP@0.5)
 - **For Small Datasets**: S-vitb16-single (0.4914 mAP@0.5) - most stable
-
-**🔥 Key Insights:**
-- **+25% mAP improvement** with DINO ViT-S single integration on small datasets
-- **ViT-S16** outperforms larger models on small datasets due to better regularization
-- **Single integration** provides the best stability-to-performance ratio
-- **ConvNeXt variants** offer excellent CNN-ViT hybrid performance
-
-
-
-**🎯 Best Model Configuration for Construction PPE:**
-```bash
-# Optimal configuration for small dataset like Construction PPE
-python train_yolov12_dino.py \
-    --data construction_ppe.yaml \
-    --yolo-size s \
-    --dino-variant vits16 \
-    --integration single \
-    --epochs 50 \
-    --batch-size 16 \
-    --imgsz 640 \
-    --name construction_ppe_optimized
-```
-
-**📈 Performance Analysis:**
-- **🚀 35.9% mAP improvement** over base YOLOv12
-- **⚡ Fast convergence**: Optimal performance reached in 50 epochs
-- **💾 Memory efficient**: Only 4GB VRAM required
-- **🎯 Best for production**: Stable training with consistent results
-
-### 🔧 **Why DINO Pre-training Works Better on Small Datasets**
-
-**🧠 Self-Supervised Learning Advantage:**
-1. **Rich Feature Representation**: DINO learns universal visual features from millions of unlabeled images
-2. **Better Initialization**: Pre-trained weights provide excellent starting point, avoiding random initialization
-3. **Regularization Effect**: Pre-trained features act as a strong regularizer, preventing overfitting
-4. **Transfer Learning**: Features learned on diverse datasets transfer well to specific domains
-
-**📊 Small Dataset Training Strategy:**
-- **Use smaller DINO variants** (ViT-S/16, ViT-B/16) for better generalization
-- **Single integration** provides optimal stability
-- **Fewer epochs** (50-100) with **early stopping** based on validation loss
-- **Lower learning rates** (1e-4 to 1e-5) for fine-tuning
-- **Strong data augmentation** to maximize limited dataset usage
-
-**⚠️ Important Notes:**
-- Always use **`--integration single`** for datasets <2000 images
-- **Freeze DINO weights** initially (default) for stability
-- Consider **`--unfreeze-dino`** only after 20-30 epochs if performance plateaus
-- Monitor **validation mAP** closely to prevent overfitting
 
 ## Updates
 
