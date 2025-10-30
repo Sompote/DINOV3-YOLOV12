@@ -25,7 +25,7 @@
 
 </div>
 
-[![arXiv](https://img.shields.io/badge/arXiv-2502.12524-b31b1b.svg)](https://arxiv.org/abs/2502.12524) [![Hugging Face Demo](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/sunsmarterjieleaf/yolov12) <a href="https://colab.research.google.com/github/roboflow-ai/notebooks/blob/main/notebooks/train-yolov12-object-detection-model.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a> [![Kaggle Notebook](https://img.shields.io/badge/Kaggle-Notebook-blue?logo=kaggle)](https://www.kaggle.com/code/jxxn03x/yolov12-on-custom-data) [![LightlyTrain Notebook](https://img.shields.io/badge/LightlyTrain-Notebook-blue?)](https://colab.research.google.com/github/lightly-ai/lightly-train/blob/main/examples/notebooks/yolov12.ipynb) [![deploy](https://media.roboflow.com/deploy.svg)](https://blog.roboflow.com/use-yolov12-with-roboflow/#deploy-yolov12-models-with-roboflow) [![Openbayes](https://img.shields.io/static/v1?label=Demo&message=OpenBayes%E8%B4%9D%E5%BC%8F%E8%AE%A1%E7%AE%97&color=green)](https://openbayes.com/console/public/tutorials/A4ac4xNrUCQ) [![DINOv3 Official](https://img.shields.io/badge/🔥_Official_DINOv3-Integrated-red)](DINOV3_OFFICIAL_GUIDE.md) [![Custom Input](https://img.shields.io/badge/⚡_--dino--input-FULLY_WORKING-brightgreen)](DINO_INPUT_GUIDE.md)
+[![arXiv](https://img.shields.io/badge/arXiv-2502.12524-b31b1b.svg)](https://arxiv.org/abs/2502.12524) [![Paper](https://img.shields.io/badge/📄_Paper-2510.25140-b31b1b.svg)](https://arxiv.org/abs/2510.25140) [![Hugging Face Demo](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/sunsmarterjieleaf/yolov12) <a href="https://colab.research.google.com/github/roboflow-ai/notebooks/blob/main/notebooks/train-yolov12-object-detection-model.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a> [![Kaggle Notebook](https://img.shields.io/badge/Kaggle-Notebook-blue?logo=kaggle)](https://www.kaggle.com/code/jxxn03x/yolov12-on-custom-data) [![LightlyTrain Notebook](https://img.shields.io/badge/LightlyTrain-Notebook-blue?)](https://colab.research.google.com/github/lightly-ai/lightly-train/blob/main/examples/notebooks/yolov12.ipynb) [![deploy](https://media.roboflow.com/deploy.svg)](https://blog.roboflow.com/use-yolov12-with-roboflow/#deploy-yolov12-models-with-roboflow) [![Openbayes](https://img.shields.io/static/v1?label=Demo&message=OpenBayes%E8%B4%9D%E5%BC%8F%E8%AE%A1%E7%AE%97&color=green)](https://openbayes.com/console/public/tutorials/A4ac4xNrUCQ) [![DINOv3 Official](https://img.shields.io/badge/🔥_Official_DINOv3-Integrated-red)](DINOV3_OFFICIAL_GUIDE.md) [![Custom Input](https://img.shields.io/badge/⚡_--dino--input-FULLY_WORKING-brightgreen)](DINO_INPUT_GUIDE.md)
 
 ---
 
@@ -206,7 +206,7 @@ python train_yolov12_dino.py \
 | **Small (PPE)** | Small (<1K images) | **+15-25%** | Single, DualP0P3 | **DINO Highly Recommended** |
 | **Large (COCO)** | Large (>100K images) | **+2-5%** | Single | **DINO Optional** |
 
-**💡 Key Insight:** 
+**💡 Key Insight:**
 - **Small/Complex Datasets**: DINO pre-training is **game-changing** (15-88% improvement)
 - **Large Datasets**: DINO provides **consistent but modest** gains (2-5% improvement)
 - **Recommendation**: Use DINO enhancement for datasets <10K images or complex scene understanding
@@ -386,7 +386,7 @@ YOLOv12 surpasses all popular real-time object detectors in accuracy with compet
 
 ### 🚀 **Systematic Architecture**
 - **40+ model combinations** with systematic naming
-- **100% test success rate** across all variants  
+- **100% test success rate** across all variants
 - **Complete DINOv3 integration** with YOLOv12 scaling
 - **Automatic channel dimension mapping** for all sizes
 
@@ -396,7 +396,7 @@ YOLOv12 surpasses all popular real-time object detectors in accuracy with compet
 ### 🌟 **Advanced Features**
 - **🎨 Input Preprocessing** (DINOv3 enhancement before P0)
 - **🏆 YOLOv12 Turbo architecture** (attention-centric design)
-- **🧠 Vision Transformer backbone** (Meta's official DINOv3) 
+- **🧠 Vision Transformer backbone** (Meta's official DINOv3)
 - **🔄 Multi-scale integration** (P3+P4 level enhancement)
 - **⚡ Optimized for production** (real-time performance)
 - **🦺 Pre-trained Construction-PPE model** (mAP@50: 51.9%)
@@ -600,7 +600,7 @@ yolov12{size}-dino{version}-{variant}-{integration}.yaml
 - **Command**: `--dinoversion 3 --dino-variant vitb16 --integration single`
 
 #### **Dual Integration (P3+P4 Backbone) 🎪 High Performance**
-- **What**: DINOv3 enhancement at both P3 (80×80×256) and P4 (40×40×256) backbone levels  
+- **What**: DINOv3 enhancement at both P3 (80×80×256) and P4 (40×40×256) backbone levels
 - **Best For**: Complex scenes with mixed object sizes, small+medium objects
 - **Performance**: +10-18% overall mAP improvement (+8-15% small objects)
 - **Trade-off**: 2x computational cost, ~8GB VRAM, 2x training time
@@ -683,7 +683,7 @@ yolov12{size}-dino{version}-{variant}-{integration}.yaml
 - **Available Configs**: All YOLO sizes (n,s,m,l,x) × All integrations (single,dual,triple)
 - **Usage**: `--dino-variant vith16_plus --integration single/dual/triple`
 
-**ViT-7B/16 Ultra (6.7B Parameters)**  
+**ViT-7B/16 Ultra (6.7B Parameters)**
 - **Full Name**: ViT-7B/16 Ultra Large Vision Transformer
 - **Parameters**: 6.7B (experimental, research-grade)
 - **Embed Dimension**: 4096
@@ -702,7 +702,7 @@ yolov12{size}-dino{version}-{variant}-{integration}.yaml
 
 #### **📊 Quick Selection Guide**
 
-**For Beginners:** 
+**For Beginners:**
 - Start with `dinov3_vitb16` (most balanced)
 - Use `dinov3_vits16` for faster development
 
@@ -717,7 +717,7 @@ yolov12{size}-dino{version}-{variant}-{integration}.yaml
 
 **Memory Constraints:**
 - <8GB VRAM: `dinov3_vits16`, `dinov3_convnext_tiny`
-- 8-16GB VRAM: `dinov3_vitb16`, `dinov3_convnext_base`  
+- 8-16GB VRAM: `dinov3_vitb16`, `dinov3_convnext_base`
 - 16-32GB VRAM: `dinov3_vitl16`
 - 32-64GB VRAM: `dinov3_vith16_plus` (ViT-H+/16 Distilled 840M)
 - >100GB VRAM: `dinov3_vit7b16` (ViT-7B/16 Ultra 6.7B)
@@ -728,7 +728,7 @@ yolov12{size}-dino{version}-{variant}-{integration}.yaml
 # Lightweight development (4GB VRAM)
 --dinoversion 3 --dino-variant vits16
 
-# Recommended production (8GB VRAM) 
+# Recommended production (8GB VRAM)
 --dinoversion 3 --dino-variant vitb16
 
 # High accuracy research (14GB+ VRAM)
@@ -749,7 +749,7 @@ yolov12{size}-dino{version}-{variant}-{integration}.yaml
 **🔥 Most Popular Choices:**
 ```bash
 dinov3_vitb16        # ⭐ RECOMMENDED: Best balance (86M params, 8GB VRAM)
-dinov3_vits16        # ⚡ FASTEST: Development & prototyping (21M params, 4GB VRAM)  
+dinov3_vits16        # ⚡ FASTEST: Development & prototyping (21M params, 4GB VRAM)
 dinov3_vitl16        # 🎯 HIGHEST ACCURACY: Research use (300M params, 14GB VRAM)
 dinov3_convnext_base # 🧠 HYBRID: CNN+ViT fusion (89M params, 8GB VRAM)
 ```
@@ -851,7 +851,7 @@ python train_yolov12_dino.py --data data.yaml --yolo-size s
 
 **Clear distinction between DINO model loading and checkpoint resuming:**
 
-### 🎯 **`--dino-input`: Custom DINO Models for Enhancement** 
+### 🎯 **`--dino-input`: Custom DINO Models for Enhancement**
 
 Use `--dino-input` to load **custom DINO models** for backbone enhancement:
 
@@ -899,7 +899,7 @@ python train_yolov12_dino.py \
     --name resumed_training
 ```
 
-### 🔄 **Resume Training from Checkpoint - ENHANCED: `train_resume.py`** 
+### 🔄 **Resume Training from Checkpoint - ENHANCED: `train_resume.py`**
 
 Use the **enhanced** `train_resume.py` script for **EXACT training state restoration** - training continues exactly where it left off:
 
@@ -1098,7 +1098,7 @@ python train_yolov12_dino.py \
 ```bash
 # Simplified shortcuts (auto-converted)
 --dino-input vitb16         # → dinov3_vitb16
---dino-input convnext_base  # → dinov3_convnext_base  
+--dino-input convnext_base  # → dinov3_convnext_base
 --dino-input vith16_plus    # → dinov3_vith16_plus
 --dino-input vit7b16        # → dinov3_vit7b16
 ```
@@ -1122,7 +1122,7 @@ python train_yolov12_dino.py \
 
 **✅ Robust Error Handling:**
 - Clear error messages for unsupported file formats
-- Graceful fallback for missing or corrupted weight files  
+- Graceful fallback for missing or corrupted weight files
 - Detailed logging for troubleshooting
 
 ### 🧪 **Real-World Usage Examples**
@@ -1174,7 +1174,7 @@ python train_yolov12_dino.py \
 
 **✅ Tested & Confirmed:**
 - Local weight file loading with dual integration on YOLOv12l
-- Custom DINO weights with 768 embedding dimension  
+- Custom DINO weights with 768 embedding dimension
 - DetectionModel checkpoint format handling
 - A2C2f architecture compatibility
 - Channel dimension auto-scaling (512 channels for l size)
@@ -1260,7 +1260,7 @@ DINOv3 models from Facebook Research are hosted on Hugging Face as **gated repos
    - Go to [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
    - Click "New token"
    - Give it a name (e.g., "dinov3-training")
-   
+
 3. **Set Required Permissions**:
    ```
    Repositories:
@@ -1273,7 +1273,7 @@ DINOv3 models from Facebook Research are hosted on Hugging Face as **gated repos
    # Method 1: Environment variable (recommended) ✅ FULLY SUPPORTED
    export HUGGINGFACE_HUB_TOKEN="hf_your_token_here"
    # The training script automatically detects and uses this token
-   
+
    # Method 2: Login command (interactive)
    hf auth login
    # Follow the interactive prompts:
@@ -1281,7 +1281,7 @@ DINOv3 models from Facebook Research are hosted on Hugging Face as **gated repos
    # - Choose to add token as git credential (Y/n)
    # - Token validation will be confirmed
    ```
-   
+
    **✅ Token Detection**: The training script will show:
    ```
    Using HUGGINGFACE_HUB_TOKEN: hf_xxxx...
@@ -1419,7 +1419,7 @@ model = YOLO('yolov12{n/s/m/l/x}.pt')
 model.val(data='coco.yaml', save_json=True)
 ```
 
-## Training 
+## Training
 
 ### 🔧 **Standard YOLOv12 Training**
 ```python
@@ -1430,8 +1430,8 @@ model = YOLO('yolov12n.yaml')
 # Train the model
 results = model.train(
   data='coco.yaml',
-  epochs=600, 
-  batch=256, 
+  epochs=600,
+  batch=256,
   imgsz=640,
   scale=0.5,  # S:0.9; M:0.9; L:0.9; X:0.9
   mosaic=1.0,
@@ -1466,7 +1466,7 @@ results = model.train(
 
 # Available DINOv3 configurations:
 # - yolov12-dino3-small.yaml  (fastest, +2.5% mAP)
-# - yolov12-dino3.yaml        (balanced, +5.0% mAP) 
+# - yolov12-dino3.yaml        (balanced, +5.0% mAP)
 # - yolov12-dino3-large.yaml  (best accuracy, +5.5% mAP)
 # - yolov12-dino3-convnext.yaml (hybrid, +4.5% mAP)
 ```
@@ -1638,10 +1638,10 @@ results = inference.predict_single(
 # Access detailed results
 for result in results:
     boxes = result.boxes.xyxy.cpu().numpy()  # Bounding boxes
-    confs = result.boxes.conf.cpu().numpy()  # Confidence scores  
+    confs = result.boxes.conf.cpu().numpy()  # Confidence scores
     classes = result.boxes.cls.cpu().numpy()  # Class IDs
     names = result.names  # Class names dictionary
-    
+
     print(f"Detected {len(boxes)} objects")
     for box, conf, cls in zip(boxes, confs, classes):
         print(f"Class: {names[int(cls)]}, Confidence: {conf:.3f}")
@@ -1709,7 +1709,7 @@ This repository includes **official DINOv3 integration** directly from Facebook 
 - **🆕 `--dinoversion` argument**: DINOv3 is default (version=3), DINOv2 support (version=2)
 - **`--dino-input` parameter** for ANY custom DINO model
 - **12+ official variants** (21M - 6.7B parameters)
-- **P4-level integration** (optimal for medium objects)  
+- **P4-level integration** (optimal for medium objects)
 - **Intelligent fallback system** (DINOv3 → DINOv2)
 - **Systematic architecture** with clear naming conventions
 
@@ -1722,7 +1722,7 @@ This repository includes **official DINOv3 integration** directly from Facebook 
 ### 📖 **Complete Documentation**
 - **[Official DINOv3 Guide](DINOV3_OFFICIAL_GUIDE.md)** - Official models from Facebook Research
 - **[Custom Input Guide](DINO_INPUT_GUIDE.md)** - `--dino-input` parameter documentation
-- **[Legacy Integration Guide](README_DINOV3.md)** - Original comprehensive documentation  
+- **[Legacy Integration Guide](README_DINOV3.md)** - Original comprehensive documentation
 - **[Usage Examples](example_dino3_usage.py)** - Code examples and tutorials
 - **[Test Suite](test_dino3_integration.py)** - Validation and testing
 
@@ -1760,14 +1760,14 @@ python train_yolov12_dino.py \
 
 **✅ Use Default (Frozen) when:**
 - 🚀 **Fast training**: Optimal speed and efficiency
-- 💾 **Limited VRAM**: Lower memory requirements  
+- 💾 **Limited VRAM**: Lower memory requirements
 - 🎯 **General use**: Most object detection tasks
 - 🏭 **Production**: Stable, reliable training
 
 **🔥 Use `--unfreeze-dino` when:**
 - 🔬 **Research**: Maximum model capacity
 - 🎨 **Domain adaptation**: Specialized datasets (medical, satellite, etc.)
-- 📊 **Large datasets**: Sufficient data for full fine-tuning  
+- 📊 **Large datasets**: Sufficient data for full fine-tuning
 - 🏆 **Competition**: Squeeze every bit of performance
 
 #### **📚 Examples for All Integration Types**
@@ -1777,7 +1777,7 @@ python train_yolov12_dino.py \
 python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16 --integration single
 python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16 --integration single --unfreeze-dino
 
-# 2️⃣ Dual P3+P4 Backbone Integration  
+# 2️⃣ Dual P3+P4 Backbone Integration
 python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16 --integration dual
 python train_yolov12_dino.py --data data.yaml --yolo-size s --dino-variant vitb16 --integration dual --unfreeze-dino
 
@@ -1799,7 +1799,7 @@ python train_yolov12_dino.py \
     --epochs 5 \
     --name test_pure_yolov12
 
-# Test official DINOv3 integration  
+# Test official DINOv3 integration
 python validate_dinov3.py --test-all
 
 # Test custom input support
@@ -1842,7 +1842,7 @@ python train_yolov12_dino.py \
     --batch-size 4 \
     --name test_vith16_plus_enterprise
 
-# Test ViT-7B/16 ultra (6.7B) - Research only  
+# Test ViT-7B/16 ultra (6.7B) - Research only
 python train_yolov12_dino.py \
     --data coco.yaml \
     --yolo-size l \
@@ -1923,7 +1923,7 @@ The code is based on [ultralytics](https://github.com/ultralytics/ultralytics). 
   year={2025}
 }
 
-@article{dinov3_yolov12_2024,
+@article{dinov3_yolov12_2025
   title={DINOv3-YOLOv12: Systematic Vision Transformer Integration for Enhanced Object Detection},
   author={AI Research Group, Department of Civil Engineering, KMUTT},
   journal={GitHub Repository},
@@ -1931,7 +1931,7 @@ The code is based on [ultralytics](https://github.com/ultralytics/ultralytics). 
   url={https://github.com/Sompote/DINOV3-YOLOV12}
 }
 
-@article{yolo_dino_paper_2024,
+@article{yolo_dino_paper_2025,
   title={YOLO-DINO: YOLOv12-DINOv3 Hybrid Architecture for Data-Efficient Object Detection},
   author={AI Research Group, Department of Civil Engineering, KMUTT},
   journal={arXiv preprint arXiv:2510.25140},
@@ -1951,7 +1951,7 @@ The code is based on [ultralytics](https://github.com/ultralytics/ultralytics). 
 
 **🚀 Revolutionizing Object Detection with Systematic Vision Transformer Integration**
 
-*Made with ❤️ by the AI Research Group, Department of Civil Engineering*  
+*Made with ❤️ by the AI Research Group, Department of Civil Engineering*
 *King Mongkut's University of Technology Thonburi (KMUTT)*
 
 [🔥 **Get Started Now**](#-quick-start-for-new-users) • [🎯 **Explore Models**](#-model-zoo) • [🏗️ **View Architecture**](#-architecture-three-ways-to-use-dino-with-yolov12)
