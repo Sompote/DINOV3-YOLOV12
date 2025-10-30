@@ -1930,6 +1930,14 @@ The code is based on [ultralytics](https://github.com/ultralytics/ultralytics). 
   year={2024},
   url={https://github.com/Sompote/DINOV3-YOLOV12}
 }
+
+@article{yolo_dino_paper_2024,
+  title={YOLO-DINO: YOLOv12-DINOv3 Hybrid Architecture for Data-Efficient Object Detection},
+  author={AI Research Group, Department of Civil Engineering, KMUTT},
+  journal={arXiv preprint arXiv:2510.25140},
+  year={2024},
+  url={https://arxiv.org/abs/2510.25140}
+}
 ```
 
 ---
