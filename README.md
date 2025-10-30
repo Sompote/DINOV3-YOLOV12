@@ -25,7 +25,7 @@
 
 </div>
 
-[![Paper](https://img.shields.io/badge/📄_Paper-2510.25140-b31b1b.svg)](https://arxiv.org/abs/2510.25140) [![DINOv3 Official](https://img.shields.io/badge/🔥_Official_DINOv3-Integrated-red)](DINOV3_OFFICIAL_GUIDE.md) [![Custom Input](https://img.shields.io/badge/⚡_--dino--input-FULLY_WORKING-brightgreen)](DINO_INPUT_GUIDE.md)
+[![Paper](https://img.shields.io/badge/📄_Paper-2510.25140-b31b1b.svg)](https://arxiv.org/abs/2510.25140)
 
 ---
 
