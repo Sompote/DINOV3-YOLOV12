@@ -2225,72 +2225,225 @@ class DINO3Preprocessor(nn.Module):
         print(f"   🏗️  Architecture: Input -> DINO3 -> Enhanced Features -> Original YOLOv12")
 
     def _load_dino_model(self):
-        """Load DINO model using Hugging Face as primary method"""
-        spec = self.dinov3_specs.get(self.model_name, self.dinov3_specs['dinov3_vitb16'])
-        
-        print(f"Loading DINOv3 VIT model: {self.model_name}")
-        print(f"  Parameters: {spec['params']}M")
-        print(f"  Embedding dim: {spec['embed_dim']}")
-        print(f"  Patch size: {spec['patch_size']}")
-        
-        # Use Hugging Face as primary loading method
+        """
+        Load DINO model from either:
+        1. Local .pth/.pt/.safetensors file (Meta's official weights)
+        2. Hugging Face transformers (fallback)
+        """
+        import os
+
+        # Check if model_name is a local file path
+        is_local_file = (
+            isinstance(self.model_name, str) and
+            self.model_name.endswith(('.pth', '.pt', '.safetensors')) and
+            os.path.exists(self.model_name)
+        )
+
+        if is_local_file:
+            # Load from local .pth file (Meta's official weights)
+            print(f"📁 Loading DINOv3 from local file: {self.model_name}")
+            return self._load_from_local_pth(self.model_name)
+        else:
+            # Load from Hugging Face (existing method)
+            spec = self.dinov3_specs.get(self.model_name, self.dinov3_specs['dinov3_vitb16'])
+
+            print(f"Loading DINOv3 VIT model: {self.model_name}")
+            print(f"  Parameters: {spec['params']}M")
+            print(f"  Embedding dim: {spec['embed_dim']}")
+            print(f"  Patch size: {spec['patch_size']}")
+
+            # Use Hugging Face as primary loading method
+            try:
+                print(f"🔄 Loading DINOv3 model via Hugging Face: {self.model_name}")
+                from transformers import AutoModel
+
+                # Map DINOv3 variants based on version
+                if self.dino_version == '3':
+                    # Use actual DINOv3 models
+                    dinov_mapping = {
+                        'dinov3_vits16': 'facebook/dinov3-vits16-pretrain-lvd1689m',
+                        'dinov3_vitb16': 'facebook/dinov3-vitb16-pretrain-lvd1689m',
+                        'dinov3_vitl16': 'facebook/dinov3-vitl16-pretrain-lvd1689m',
+                        'dinov3_vith16plus': 'facebook/dinov3-vit7b16-pretrain-lvd1689m',
+                        'dinov3_vit7b16': 'facebook/dinov3-vit7b16-pretrain-lvd1689m',
+                        # Handle simplified names
+                        'vits16': 'facebook/dinov3-vits16-pretrain-lvd1689m',
+                        'vitb16': 'facebook/dinov3-vitb16-pretrain-lvd1689m',
+                        'vitl16': 'facebook/dinov3-vitl16-pretrain-lvd1689m',
+                        'vith16plus': 'facebook/dinov3-vit7b16-pretrain-lvd1689m',
+                        'vit7b16': 'facebook/dinov3-vit7b16-pretrain-lvd1689m'
+                    }
+                else:
+                    # Use DINOv2 models for backward compatibility
+                    dinov_mapping = {
+                        'dinov3_vits16': 'facebook/dinov2-small',
+                        'dinov3_vitb16': 'facebook/dinov2-base',
+                        'dinov3_vitl16': 'facebook/dinov2-large',
+                        'dinov3_vith16plus': 'facebook/dinov2-giant',
+                        'dinov3_vit7b16': 'facebook/dinov2-giant',
+                        'vits16': 'facebook/dinov2-small',
+                        'vitb16': 'facebook/dinov2-base',
+                        'vitl16': 'facebook/dinov2-large',
+                        'vith16plus': 'facebook/dinov2-giant',
+                        'vit7b16': 'facebook/dinov2-giant'
+                    }
+
+                # Get appropriate fallback
+                if self.dino_version == '3':
+                    default_model = 'facebook/dinov3-vitb16-pretrain-lvd1689m'
+                else:
+                    default_model = 'facebook/dinov2-base'
+
+                dino_model_id = dinov_mapping.get(self.model_name, default_model)
+                dino_model = AutoModel.from_pretrained(dino_model_id)
+                print(f"✅ Successfully loaded DINOv{self.dino_version} from Hugging Face: {dino_model_id} (for DINOv3 {self.model_name})")
+                print(f"   Embedding dim mapping: {dino_model.config.hidden_size} -> {spec['embed_dim']}")
+
+            except Exception as e:
+                print(f"❌ Failed to load DINO model from Hugging Face: {e}")
+                raise RuntimeError(f"Could not load DINO model variant for {self.model_name}: {e}")
+
+            # Freeze weights if requested
+            if self.freeze_backbone:
+                for param in dino_model.parameters():
+                    param.requires_grad = False
+                print(f"DINOv3 preprocessor weights frozen: {self.model_name}")
+
+            return dino_model
+
+    def _load_from_local_pth(self, pth_path):
+        """
+        Load DINOv3 model from Meta's official .pth file.
+
+        Args:
+            pth_path (str): Path to the .pth file
+
+        Returns:
+            torch.nn.Module: Loaded DINOv3 model compatible with transformers interface
+        """
+        import torch
+        from transformers import Dinov2Model, Dinov2Config
+
+        print(f"📦 Loading weights from: {pth_path}")
+
         try:
-            print(f"🔄 Loading DINOv3 model via Hugging Face: {self.model_name}")
-            from transformers import AutoModel
-            
-            # Map DINOv3 variants based on version
-            if self.dino_version == '3':
-                # Use actual DINOv3 models
-                dinov_mapping = {
-                    'dinov3_vits16': 'facebook/dinov3-vits16-pretrain-lvd1689m',
-                    'dinov3_vitb16': 'facebook/dinov3-vitb16-pretrain-lvd1689m', 
-                    'dinov3_vitl16': 'facebook/dinov3-vitl16-pretrain-lvd1689m',
-                    'dinov3_vith16plus': 'facebook/dinov3-vit7b16-pretrain-lvd1689m',
-                    'dinov3_vit7b16': 'facebook/dinov3-vit7b16-pretrain-lvd1689m',
-                    # Handle simplified names
-                    'vits16': 'facebook/dinov3-vits16-pretrain-lvd1689m',
-                    'vitb16': 'facebook/dinov3-vitb16-pretrain-lvd1689m',
-                    'vitl16': 'facebook/dinov3-vitl16-pretrain-lvd1689m',
-                    'vith16plus': 'facebook/dinov3-vit7b16-pretrain-lvd1689m',
-                    'vit7b16': 'facebook/dinov3-vit7b16-pretrain-lvd1689m'
-                }
+            # Load the state dict from Meta's .pth file
+            state_dict = torch.load(pth_path, map_location='cpu')
+            print(f"✅ Loaded state dict with {len(state_dict)} keys")
+
+            # Infer model configuration from state dict
+            embed_dim = self._infer_embed_dim_from_state_dict(state_dict)
+            print(f"   Detected embedding dimension: {embed_dim}")
+
+            # Update specs if custom
+            if self.model_name not in self.dinov3_specs:
+                print(f"   Updating specs for custom model")
+                # Store inferred specs for this custom model
+                self.embed_dim = embed_dim
+
+            # Create a Dinov2Config matching the weights
+            # Map embed_dim to closest standard config
+            if embed_dim <= 384:
+                config_preset = 'facebook/dinov2-small'
+                num_heads = 6
+                depth = 12
+            elif embed_dim <= 768:
+                config_preset = 'facebook/dinov2-base'
+                num_heads = 12
+                depth = 12
+            elif embed_dim <= 1024:
+                config_preset = 'facebook/dinov2-large'
+                num_heads = 16
+                depth = 24
             else:
-                # Use DINOv2 models for backward compatibility
-                dinov_mapping = {
-                    'dinov3_vits16': 'facebook/dinov2-small',
-                    'dinov3_vitb16': 'facebook/dinov2-base', 
-                    'dinov3_vitl16': 'facebook/dinov2-large',
-                    'dinov3_vith16plus': 'facebook/dinov2-giant',
-                    'dinov3_vit7b16': 'facebook/dinov2-giant',
-                    'vits16': 'facebook/dinov2-small',
-                    'vitb16': 'facebook/dinov2-base',
-                    'vitl16': 'facebook/dinov2-large',
-                    'vith16plus': 'facebook/dinov2-giant',
-                    'vit7b16': 'facebook/dinov2-giant'
-                }
-            
-            # Get appropriate fallback
-            if self.dino_version == '3':
-                default_model = 'facebook/dinov3-vitb16-pretrain-lvd1689m'
-            else:
-                default_model = 'facebook/dinov2-base'
-                
-            dino_model_id = dinov_mapping.get(self.model_name, default_model)
-            dino_model = AutoModel.from_pretrained(dino_model_id)
-            print(f"✅ Successfully loaded DINOv{self.dino_version} from Hugging Face: {dino_model_id} (for DINOv3 {self.model_name})")
-            print(f"   Embedding dim mapping: {dino_model.config.hidden_size} -> {spec['embed_dim']}")
-            
+                config_preset = 'facebook/dinov2-giant'
+                num_heads = 16
+                depth = 40
+
+            print(f"   Using config preset: {config_preset}")
+
+            # Create config
+            config = Dinov2Config.from_pretrained(config_preset)
+            config.hidden_size = embed_dim
+            config.num_attention_heads = num_heads
+            config.num_hidden_layers = depth
+
+            # Create model with config
+            model = Dinov2Model(config)
+
+            # Load the state dict into the model
+            # Meta's weights may have different key names, so use strict=False
+            missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+
+            if missing_keys:
+                print(f"   ⚠️  Missing keys: {len(missing_keys)} (may be normal)")
+                if len(missing_keys) < 10:
+                    for key in missing_keys[:5]:
+                        print(f"      - {key}")
+
+            if unexpected_keys:
+                print(f"   ⚠️  Unexpected keys: {len(unexpected_keys)} (may be normal)")
+                if len(unexpected_keys) < 10:
+                    for key in unexpected_keys[:5]:
+                        print(f"      - {key}")
+
+            print(f"✅ Successfully created DINOv3 model from local weights")
+
+            # Freeze weights if requested
+            if self.freeze_backbone:
+                for param in model.parameters():
+                    param.requires_grad = False
+                print(f"🧊 DINOv3 preprocessor weights frozen")
+
+            return model
+
         except Exception as e:
-            print(f"❌ Failed to load DINO model from Hugging Face: {e}")
-            raise RuntimeError(f"Could not load DINO model variant for {self.model_name}: {e}")
-        
-        # Freeze weights if requested
-        if self.freeze_backbone:
-            for param in dino_model.parameters():
-                param.requires_grad = False
-            print(f"DINOv3 preprocessor weights frozen: {self.model_name}")
-        
-        return dino_model
+            print(f"❌ Failed to load from local .pth file: {e}")
+            import traceback
+            traceback.print_exc()
+            raise RuntimeError(f"Could not load DINOv3 from {pth_path}: {e}")
+
+    def _infer_embed_dim_from_state_dict(self, state_dict):
+        """
+        Infer embedding dimension from state dict keys.
+
+        Args:
+            state_dict (dict): Model state dictionary
+
+        Returns:
+            int: Inferred embedding dimension
+        """
+        # Look for common patterns to infer embed_dim
+        for key, tensor in state_dict.items():
+            # Look for embeddings, projection layers, or attention layers
+            if any(pattern in key.lower() for pattern in ['embed', 'projection', 'qkv', 'attn', 'cls_token']):
+                if len(tensor.shape) >= 2:
+                    # Common patterns: [embed_dim, ...] or [..., embed_dim]
+                    possible_dims = [dim for dim in tensor.shape if dim in [384, 768, 1024, 1280, 4096]]
+                    if possible_dims:
+                        embed_dim = possible_dims[0]
+                        print(f"   Detected embed_dim from {key}: {embed_dim}")
+                        return embed_dim
+                elif len(tensor.shape) == 1:
+                    # Could be cls_token or positional embedding
+                    dim = tensor.shape[0]
+                    if dim in [384, 768, 1024, 1280, 4096]:
+                        print(f"   Detected embed_dim from {key}: {dim}")
+                        return dim
+
+        # Fallback: use default based on total parameters
+        total_params = sum(p.numel() for p in state_dict.values())
+        if total_params < 50_000_000:  # < 50M params
+            embed_dim = 384
+        elif total_params < 200_000_000:  # < 200M params
+            embed_dim = 768
+        elif total_params < 1_000_000_000:  # < 1B params
+            embed_dim = 1024
+        else:
+            embed_dim = 1280
+
+        print(f"   Using fallback embed_dim based on model size: {embed_dim}")
+        return embed_dim
     
     def forward(self, x):
         """

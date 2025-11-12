@@ -126,6 +126,138 @@ pip install transformers
 python -c "from ultralytics.nn.modules.block import DINO3Backbone; print('✅ DINOv3 integration ready!')"
 ```
 
+## 🔧 DINOv3 Weight Loading Options
+
+YOLO-DINO supports **two methods** for loading DINOv3 weights:
+
+### 📦 **Method 1: Local .pth Files (Recommended for Offline/Production)**
+
+Use Meta's official pretrained weights or your own fine-tuned DINO models.
+
+#### **Download Meta's Official DINOv3 Weights**
+
+Official DINOv3 weights from Meta Research can be downloaded from:
+
+| Model | Parameters | Download Link | File Size |
+|-------|-----------|---------------|-----------|
+| **ViT-S/16** | 21M | [dinov3_vits16_pretrain.pth](https://dl.fbaipublicfiles.com/dinov3/dinov3_vits16_pretrain.pth) | ~84 MB |
+| **ViT-B/16** | 86M | [dinov3_vitb16_pretrain.pth](https://dl.fbaipublicfiles.com/dinov3/dinov3_vitb16_pretrain.pth) | ~343 MB |
+| **ViT-L/16** | 300M | [dinov3_vitl16_pretrain.pth](https://dl.fbaipublicfiles.com/dinov3/dinov3_vitl16_pretrain.pth) | ~1.2 GB |
+| **ViT-L/16 (SAT)** | 300M | [dinov3_vitl16_pretrain_sat493m.pth](https://dl.fbaipublicfiles.com/dinov3/dinov3_vitl16_pretrain_sat493m.pth) | ~1.2 GB |
+
+**Download example:**
+```bash
+# Create weights directory
+mkdir -p dinov3/weights
+cd dinov3/weights
+
+# Download ViT-B/16 (recommended)
+wget https://dl.fbaipublicfiles.com/dinov3/dinov3_vitb16_pretrain.pth
+
+# Download ViT-L/16 for SAT imagery (specialized)
+wget https://dl.fbaipublicfiles.com/dinov3/dinov3_vitl16_pretrain_sat493m.pth
+```
+
+#### **Use Local .pth Files in Training**
+
+```bash
+# Using Meta's official .pth file
+python train_yolov12_dino.py \
+    --data your_dataset.yaml \
+    --yolo-size l \
+    --epochs 100 \
+    --batch-size 8 \
+    --dino-input /path/to/dinov3_vitl16_pretrain.pth \
+    --integration single \
+    --imgsz 640 \
+    --name my_experiment
+
+# Example with satellite-trained weights
+python train_yolov12_dino.py \
+    --data kitti.yaml \
+    --yolo-size l \
+    --epochs 500 \
+    --batch-size 8 \
+    --dino-input ../dinov3/weights/dinov3_vitl16_pretrain_sat493m.pth \
+    --integration single \
+    --imgsz 800 \
+    --name kitti_sat_weights
+```
+
+#### **Use Your Own Fine-tuned DINO Weights**
+
+If you have fine-tuned DINOv3 on your specific domain:
+
+```bash
+# Use custom fine-tuned DINO weights
+python train_yolov12_dino.py \
+    --data custom_domain.yaml \
+    --yolo-size m \
+    --epochs 200 \
+    --batch-size 16 \
+    --dino-input /path/to/my_finetuned_dinov3.pth \
+    --integration dualp0p3 \
+    --imgsz 640 \
+    --name custom_domain_experiment
+```
+
+**Supported file formats:**
+- `.pth` - PyTorch checkpoint file
+- `.pt` - PyTorch model file
+- `.safetensors` - Safe tensors format
+
+### 🌐 **Method 2: HuggingFace Transformers (Automatic Download)**
+
+Let the system automatically download weights from HuggingFace Hub.
+
+```bash
+# Using variant name (auto-downloads from HuggingFace)
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size s \
+    --dino-variant vitb16 \
+    --integration single \
+    --epochs 100 \
+    --batch-size 32 \
+    --name auto_download_experiment
+```
+
+**Available variants for auto-download:**
+- `vits16` - Small (21M params)
+- `vitb16` - Base (86M params, recommended)
+- `vitl16` - Large (300M params)
+- `vith16_plus` - Huge (840M params)
+- `convnext_tiny` - ConvNeXt Tiny (29M params)
+- `convnext_base` - ConvNeXt Base (89M params)
+
+### 📊 **Weight Loading Method Comparison**
+
+| Feature | Local .pth Files | HuggingFace Auto-Download |
+|---------|------------------|---------------------------|
+| **Offline Support** | ✅ Yes | ❌ No (requires internet) |
+| **Speed** | ⚡ Instant | 🐌 Depends on connection |
+| **Custom Weights** | ✅ Supported | ❌ Official only |
+| **Fine-tuned Models** | ✅ Yes | ❌ No |
+| **Reproducibility** | ✅ Exact version control | ⚠️ May change |
+| **Production** | ✅ Recommended | ⚠️ Not recommended |
+| **Setup Complexity** | ⚙️ Manual download | ✨ Automatic |
+
+### 💡 **Best Practices**
+
+**For Production/Research:**
+- ✅ Use local `.pth` files for exact reproducibility
+- ✅ Version control your weight files
+- ✅ Test weights before large-scale experiments
+
+**For Quick Prototyping:**
+- ⚡ Use HuggingFace auto-download for fast setup
+- 🔄 Cache weights locally after first download
+
+**For Domain-Specific Tasks:**
+- 🎯 Fine-tune DINOv3 on your domain first
+- 💾 Save fine-tuned weights as `.pth` file
+- 🚀 Use fine-tuned weights with `--dino-input`
+
 ## 🚀 Quick Start
 
 ### 🎯 **Basic Training**

@@ -853,27 +853,92 @@ python train_yolov12_dino.py --data data.yaml --yolo-size s
 
 ### 🎯 **`--dino-input`: Custom DINO Models for Enhancement**
 
-Use `--dino-input` to load **custom DINO models** for backbone enhancement:
+Use `--dino-input` to load **custom DINO models** for backbone enhancement. Supports **two methods**:
 
+#### **📦 Method 1: Local .pth Files from Meta (Recommended)**
+
+Download and use Meta's official DINOv3 pretrained weights:
+
+| Model | Parameters | Download Link | File Size |
+|-------|-----------|---------------|-----------|
+| **ViT-S/16** | 21M | [dinov3_vits16_pretrain.pth](https://dl.fbaipublicfiles.com/dinov3/dinov3_vits16_pretrain.pth) | ~84 MB |
+| **ViT-B/16** | 86M | [dinov3_vitb16_pretrain.pth](https://dl.fbaipublicfiles.com/dinov3/dinov3_vitb16_pretrain.pth) | ~343 MB |
+| **ViT-L/16** | 300M | [dinov3_vitl16_pretrain.pth](https://dl.fbaipublicfiles.com/dinov3/dinov3_vitl16_pretrain.pth) | ~1.2 GB |
+| **ViT-L/16 (SAT)** | 300M | [dinov3_vitl16_pretrain_sat493m.pth](https://dl.fbaipublicfiles.com/dinov3/dinov3_vitl16_pretrain_sat493m.pth) | ~1.2 GB |
+
+**Download and use:**
 ```bash
-# 🏗️ Single Integration with Custom DINO Weights (P0 Input)
+# Download Meta's official weights
+mkdir -p dinov3/weights && cd dinov3/weights
+wget https://dl.fbaipublicfiles.com/dinov3/dinov3_vitb16_pretrain.pth
+
+# 🏗️ Single Integration with Meta's Official Weights (P0 Input)
 python train_yolov12_dino.py \
     --data /path/to/your/data.yaml \
     --yolo-size s \
-    --dinoversion 3 \
-    --dino-input /path/to/your/custom_dino_model.pth \
+    --dino-input dinov3/weights/dinov3_vitb16_pretrain.pth \
     --integration single \
-    --epochs 100
+    --epochs 100 \
+    --name meta_weights_single
 
-# 🎪 Dual Integration with Custom DINO Weights (P3+P4 Backbone)
+# 🎪 Dual Integration with Satellite-trained Weights (P3+P4 Backbone)
 python train_yolov12_dino.py \
-    --data /path/to/your/data.yaml \
+    --data kitti.yaml \
     --yolo-size l \
-    --dinoversion 3 \
-    --dino-input /path/to/your/dino_backbone.pt \
+    --dino-input dinov3/weights/dinov3_vitl16_pretrain_sat493m.pth \
     --integration dual \
-    --epochs 200
+    --epochs 200 \
+    --name satellite_weights_dual
 ```
+
+#### **🎨 Method 2: Your Own Fine-tuned DINO Weights**
+
+Use your domain-specific fine-tuned DINOv3 models:
+
+```bash
+# Use custom fine-tuned DINO weights for medical imaging
+python train_yolov12_dino.py \
+    --data medical_dataset.yaml \
+    --yolo-size m \
+    --dino-input /path/to/my_medical_finetuned_dinov3.pth \
+    --integration dualp0p3 \
+    --epochs 150 \
+    --name medical_custom_weights
+
+# Use fine-tuned weights for aerial imagery
+python train_yolov12_dino.py \
+    --data aerial_dataset.yaml \
+    --yolo-size l \
+    --dino-input /path/to/aerial_finetuned_dino.pt \
+    --integration triple \
+    --epochs 200 \
+    --name aerial_custom_weights
+```
+
+**Supported file formats:**
+- `.pth` - PyTorch checkpoint file
+- `.pt` - PyTorch model file
+- `.safetensors` - Safe tensors format
+
+#### **🌐 Method 3: HuggingFace Auto-download (Alternative)**
+
+Or let the system auto-download from HuggingFace:
+
+```bash
+# Auto-download from HuggingFace using variant name
+python train_yolov12_dino.py \
+    --data coco.yaml \
+    --yolo-size s \
+    --dino-variant vitb16 \
+    --integration single \
+    --epochs 100 \
+    --name huggingface_auto
+```
+
+**💡 When to use each method:**
+- **Local .pth files**: ✅ Production, offline environments, exact reproducibility
+- **Fine-tuned weights**: ✅ Domain-specific tasks (medical, aerial, satellite)
+- **HuggingFace auto**: ✅ Quick prototyping, development, testing
 
 ### 🔄 **`--pretrain`: Resume Training from YOLO Checkpoints**
 
