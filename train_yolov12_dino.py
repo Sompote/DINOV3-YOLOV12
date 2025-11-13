@@ -1188,40 +1188,71 @@ def main():
         # Load model
         if args.pretrain:
             print(f"🔧 Loading from pretrained checkpoint: {args.pretrain}")
-            
-            # CRITICAL FIX: Use YOLO's built-in checkpoint loading
-            print(f"🔧 Using YOLO's built-in checkpoint loading for proper resuming...")
-            model = YOLO(args.pretrain)
-            
+
+            # CRITICAL FIX FOR DINO: Load the DINO config FIRST, then transfer weights from pretrain
+            # This ensures DINO layers are created in the architecture
+            if args.dinoversion and args.integration:
+                print(f"🔧 DINO requested - loading architecture from config: {model_config}")
+                print(f"   Then transferring weights from pretrained checkpoint...")
+
+                # Load the DINO-enhanced architecture
+                model = YOLO(model_config)
+                print(f"✅ Loaded DINO architecture from config")
+
+                # Now transfer compatible weights from the pretrained checkpoint
+                pretrain_model = YOLO(args.pretrain)
+                print(f"✅ Loaded pretrained weights from: {args.pretrain}")
+
+                # Transfer weights: match layers by name where possible
+                pretrain_state = pretrain_model.model.state_dict()
+                model_state = model.model.state_dict()
+
+                transferred = 0
+                skipped = 0
+                for name, param in model_state.items():
+                    if name in pretrain_state:
+                        pretrain_param = pretrain_state[name]
+                        if param.shape == pretrain_param.shape:
+                            model_state[name] = pretrain_param.clone()
+                            transferred += 1
+                        else:
+                            skipped += 1
+                    else:
+                        skipped += 1
+
+                model.model.load_state_dict(model_state)
+                print(f"📊 Weight transfer: {transferred} layers transferred, {skipped} new DINO layers initialized")
+
+            else:
+                # No DINO - use standard checkpoint loading
+                print(f"🔧 Using YOLO's built-in checkpoint loading for standard model...")
+                model = YOLO(args.pretrain)
+                print(f"✅ Loaded model directly from checkpoint")
+
             # Verify the model loaded properly
             checkpoint = torch.load(args.pretrain, map_location='cpu')
-            print(f"✅ Loaded model directly from checkpoint")
-            
-            if 'train_args' in checkpoint:
-                original_config = checkpoint['train_args'].get('model', None)
-                print(f"📄 Original config: {original_config}")
-            
+
             if 'epoch' in checkpoint:
                 print(f"📅 Checkpoint from epoch: {checkpoint['epoch']}")
             if 'best_fitness' in checkpoint and checkpoint['best_fitness'] is not None:
                 print(f"🏆 Checkpoint best fitness: {checkpoint['best_fitness']:.4f}")
-            
+
             # Verify model parameters
             total_params = sum(p.numel() for p in model.model.parameters())
             print(f"📊 Model has {total_params:,} total parameters")
-            
+
             # Re-freeze DINO layers if they should be frozen
-            if not args.unfreeze_dino:
+            if not args.unfreeze_dino and args.dinoversion:
                 print(f"🧊 Re-freezing DINO layers to maintain frozen state...")
                 frozen_count = 0
                 for name, param in model.model.named_parameters():
-                    if 'dino_model' in name:
+                    if 'dino_model' in name or 'dino_backbone' in name:
                         param.requires_grad = False
                         frozen_count += 1
                 print(f"🧊 Frozen {frozen_count} DINO parameters")
-            
-            print(f"🎯 YOLO built-in checkpoint loading complete!")
-                
+
+            print(f"🎯 Model loading complete!")
+
         else:
             print(f"🔧 Loading model: {model_config}")
             model = YOLO(model_config)

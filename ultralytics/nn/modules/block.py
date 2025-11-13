@@ -2448,47 +2448,65 @@ class DINO3Preprocessor(nn.Module):
     def forward(self, x):
         """
         Forward pass: Input image -> DINO enhanced image -> Ready for original YOLOv12
-        
+
         Args:
             x (torch.Tensor): Input image tensor (batch_size, 3, height, width)
-        
+
         Returns:
             torch.Tensor: Enhanced image tensor (batch_size, 3, height, width)
         """
-        # SIMPLIFIED APPROACH: Bypass DINO processing during training to avoid errors
-        # This maintains the architecture but makes DINO processing optional
-        
-        if self.training:
-            # During training, apply minimal processing to avoid segmentation faults
-            # You can enable full DINO processing later after resolving the feature processing issues
-            return x  # Pass through original input unchanged
-        else:
-            # During inference, attempt DINO processing with fallback
-            batch_size, channels, height, width = x.shape
-            original_input = x
-            
-            try:
-                # Simplified DINO feature extraction
-                with torch.set_grad_enabled(False):  # Always disable grad for inference
-                    # Use transformers model directly
-                    outputs = self.dino_model(x)
-                    if hasattr(outputs, 'last_hidden_state'):
-                        dino_features = outputs.last_hidden_state
-                        
-                        # Simple global average pooling instead of complex processing
-                        # This avoids channel mismatch issues
-                        dino_global = torch.mean(dino_features, dim=1, keepdim=True)  # (B, 1, D)
-                        
-                        # Create a simple enhancement mask
-                        enhancement = torch.ones_like(x) * 0.1 * dino_global.mean()
-                        
-                        # Apply minimal enhancement
-                        enhanced_image = x + enhancement
-                        
-                        return torch.clamp(enhanced_image, 0, 1)
-                    else:
-                        return original_input
-                        
-            except Exception as e:
-                # Always fallback to original input
-                return original_input
+        batch_size, channels, height, width = x.shape
+        original_input = x
+
+        try:
+            # Extract DINO features (works in both training and inference)
+            # DINO weights are frozen, so gradients won't be computed through the model
+            with torch.set_grad_enabled(not self.freeze_backbone):
+                # Use transformers model directly
+                outputs = self.dino_model(x)
+                if hasattr(outputs, 'last_hidden_state'):
+                    dino_features = outputs.last_hidden_state  # (B, num_tokens, embed_dim)
+
+                    # DINOv3 outputs: [cls_token, patch_tokens, register_tokens, ...]
+                    # For 640x640 input with 16x16 patches: 1 + (40*40) + 4 = 1605 tokens
+                    patch_size = 16  # DINOv3 uses 16x16 patches
+                    num_patches_h = height // patch_size
+                    num_patches_w = width // patch_size
+                    expected_patches = num_patches_h * num_patches_w
+
+                    # Remove class token (first token)
+                    dino_features = dino_features[:, 1:, :]  # (B, num_tokens-1, embed_dim)
+
+                    # Keep only patch tokens (remove register tokens at the end)
+                    dino_features = dino_features[:, :expected_patches, :]  # (B, num_patches, embed_dim)
+
+                    # Reshape to spatial dimensions
+                    dino_features = dino_features.reshape(batch_size, num_patches_h, num_patches_w, -1)
+                    dino_features = dino_features.permute(0, 3, 1, 2)  # (B, embed_dim, H/16, W/16)
+
+                    # Process features through the feature processor network
+                    # This converts DINO features (768-dim) back to 3-channel image
+                    enhanced_features = self.feature_processor(dino_features)
+
+                    # Upsample to original image size
+                    enhanced_features = torch.nn.functional.interpolate(
+                        enhanced_features, size=(height, width), mode='bilinear', align_corners=False
+                    )
+
+                    # Apply residual connection with learned weight
+                    # enhanced_features is in [-1, 1] range from Tanh
+                    # Normalize to [0, 1] for addition with input
+                    enhanced_features = (enhanced_features + 1) / 2
+
+                    enhanced_image = original_input * (1 - self.residual_weight) + enhanced_features * self.residual_weight
+
+                    return torch.clamp(enhanced_image, 0, 1)
+                else:
+                    return original_input
+
+        except Exception as e:
+            # Always fallback to original input on error
+            import traceback
+            print(f"⚠️  DINO3Preprocessor forward pass failed: {e}")
+            traceback.print_exc()
+            return original_input
