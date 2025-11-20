@@ -1,7 +1,7 @@
 
 <div align="center">
 
-# 🚀 YOLO-DINO: YOLOv12-DINOv3 Hybrid Architecture for Data-Efficient Object Detection
+# 🚀 DINO-YOLO: YOLOv12-DINOv3 Hybrid Architecture for Data-Efficient Object Detection
 
 [![Python](https://img.shields.io/badge/Python-3.8+-3776ab?logo=python&logoColor=white)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org)
