@@ -1,0 +1,50 @@
+# YOLOv12m with DINOv3 P0 Integration - OBB (Oriented Bounding Box) Version
+# Architecture: Input -> DINO3Preprocessor -> Standard YOLOv12m -> OBB Head
+# Clean P0-only enhancement with DINO preprocessing before YOLOv12 backbone
+
+nc: 80  # number of classes
+scale: m  # force medium scale
+
+scales: # model compound scaling constants
+  # [depth, width, max_channels]
+  n: [0.50, 0.25, 1024]   # YOLOv12n
+  s: [0.50, 0.50, 1024]   # YOLOv12s
+  m: [0.67, 0.75, 768]    # YOLOv12m
+  l: [1.00, 1.00, 512]    # YOLOv12l
+  x: [1.00, 1.25, 512]    # YOLOv12x
+
+backbone:
+  # [from, repeats, module, args] - P0 Only: DINO Preprocessing + Standard YOLOv12m
+  # YOLOv12m channel progression with 0.75 width scaling: 3->48->96->192->192->384->384->384->576->576
+  - [-1, 1, DINO3Preprocessor, ['dinov3_vitb16', True, 3]]  # 0: P0 Input preprocessing (3->3 channels)
+  - [-1, 1, Conv, [64, 3, 2]]  # 1-P1/2 (3->48 channels with m scaling: 64*0.75=48)
+  - [-1, 1, Conv, [128, 3, 2, 1, 2]] # 2-P2/4 (48->96 channels with m scaling: 128*0.75=96)
+  - [-1, 4, C3k2, [256, False, 0.25]]  # 3 (96->192 channels with m scaling: 256*0.75=192)
+  - [-1, 1, Conv, [256, 3, 2, 1, 4]] # 4-P3/8 (192->192 channels with m scaling: 256*0.75=192)
+  - [-1, 8, C3k2, [512, False, 0.25]]  # 5: Standard P3 (192->384 channels with m scaling: 512*0.75=384)
+
+  # Continue standard YOLOv12m backbone - NO DINO at P3
+  - [-1, 1, Conv, [512, 3, 2]] # 6-P4/16 (384->384 channels with m scaling: 512*0.75=384)
+  - [-1, 8, A2C2f, [512, True, 4]]  # 7: Standard P4 (384->384 channels with m scaling: 512*0.75=384)
+  - [-1, 1, Conv, [768, 3, 2]] # 8-P5/32 (384->576 channels with m scaling: 768*0.75=576)
+  - [-1, 8, A2C2f, [768, True, 1]]  # 9: Standard P5 (576->576 channels with m scaling: 768*0.75=576)
+
+# YOLOv12m head architecture (standard - no DINO integration)
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 10 (576->576 channels)
+  - [[-1, 7], 1, Concat, [1]] # 11: cat P5 + P4 (576 + 384 = 960 channels)
+  - [-1, 4, A2C2f, [512, False, -1]] # 12: (960 -> 384 channels with m scaling: 512*0.75=384)
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 13 (384->384 channels)
+  - [[-1, 5], 1, Concat, [1]] # 14: cat with standard P3 (384 + 384 = 768 channels)
+  - [-1, 4, A2C2f, [256, False, -1]] # 15: P3/8-small (768 -> 192 channels with m scaling: 256*0.75=192)
+
+  - [-1, 1, Conv, [256, 3, 2]] # 16: (192 -> 192 channels with m scaling: 256*0.75=192)
+  - [[-1, 12], 1, Concat, [1]] # 17: cat head P4 (192 + 384 = 576 channels)
+  - [-1, 4, A2C2f, [512, False, -1]] # 18: P4/16-medium (576 -> 384 channels with m scaling: 512*0.75=384)
+
+  - [-1, 1, Conv, [512, 3, 2]] # 19: (384 -> 384 channels with m scaling: 512*0.75=384)
+  - [[-1, 9], 1, Concat, [1]] # 20: cat head P5 (384 + 576 = 960 channels)
+  - [-1, 4, C3k2, [768, True]] # 21: P5/32-large (960 -> 576 channels with m scaling: 768*0.75=576)
+
+  - [[15, 18, 21], 1, OBB, [nc, 1]] # 22: OBB(P3=192, P4=384, P5=576) with 1 angle parameter

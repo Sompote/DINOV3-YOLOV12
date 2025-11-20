@@ -1968,6 +1968,40 @@ python train_yolov12_dino.py \
 
 ---
 
+## 🎯 OBB (Oriented Bounding Box) Detection
+
+YOLOv12-DINO3 now supports **OBB detection** for rotated objects - ideal for aerial imagery, document analysis, and applications where object orientation matters.
+
+### Quick Start
+
+```bash
+# Train OBB model
+python trainobb.py --model yolov12m-dualp0p3 --data dota.yaml --epochs 100 --imgsz 1024
+
+# Run inference
+python inferobb.py --weights best.pt --source images/ --conf 0.25 --save-txt
+```
+
+### Available OBB Models
+
+| Model | CLI Name | Description |
+|-------|----------|-------------|
+| YOLOv12s-P0only-OBB | `yolov12s-p0only` | Small, P0 preprocessing |
+| YOLOv12m-DualP0P3-OBB | `yolov12m-dualp0p3` | Medium, balanced |
+| YOLOv12l-DualP0P3-OBB | `yolov12l-dualp0p3` | Large, high accuracy |
+
+### Documentation
+
+For complete OBB documentation including:
+- All available model configurations
+- DOTA dataset tutorial
+- Training and inference CLI arguments
+- Dataset format and conversion
+
+**See: [README_OBB.md](README_OBB.md)**
+
+---
+
 ## Acknowledgement
 
 **Made by AI Research Group, Department of Civil Engineering, KMUTT** 🏛️

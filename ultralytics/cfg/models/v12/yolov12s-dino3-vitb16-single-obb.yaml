@@ -1,0 +1,51 @@
+# YOLOv12s with DINOv3 ViT-B/16 Single-Scale Integration - OBB (Oriented Bounding Box) Version
+# Channel flow follows standard YOLOv12s exactly, with DINO at P4 level
+
+nc: 80  # number of classes
+scale: s  # force small scale
+
+scales: # model compound scaling constants
+  # [depth, width, max_channels]
+  n: [0.50, 0.25, 1024]   # YOLOv12n
+  s: [0.50, 0.50, 1024]   # YOLOv12s
+  m: [0.67, 0.75, 768]    # YOLOv12m
+  l: [1.00, 1.00, 512]    # YOLOv12l
+  x: [1.00, 1.25, 512]    # YOLOv12x
+
+backbone:
+  # [from, repeats, module, args]
+  # Standard YOLOv12s backbone with DINO insertion at P4
+  - [-1, 1, Conv, [64, 3, 2]]  # 0-P1/2 (3->32 channels with s scaling)
+  - [-1, 1, Conv, [128, 3, 2, 1, 2]] # 1-P2/4 (32->64 channels with s scaling)
+  - [-1, 3, C3k2, [256, False, 0.25]]  # 2 (64->128 channels with s scaling)
+  - [-1, 1, Conv, [256, 3, 2, 1, 4]] # 3-P3/8 (128->128 channels with s scaling)
+  - [-1, 6, C3k2, [512, False, 0.25]]  # 4 (128->256 channels with s scaling)
+  - [-1, 1, Conv, [512, 3, 2]] # 5-P4/16 (256->256 channels with s scaling)
+  - [-1, 6, A2C2f, [512, True, 4]]  # 6: Standard P4 (256->256 channels with s scaling)
+
+  # DINO3 integration at P4 level - maintain exact same channel count
+  - [-1, 1, DINO3Backbone, ['dinov3_vitb16', True, 256]]  # 7: DINO enhanced P4 (256->256 channels)
+
+  # Continue standard YOLOv12s backbone
+  - [-1, 1, Conv, [1024, 3, 2]] # 8-P5/32 (256->512 channels with s scaling)
+  - [-1, 3, A2C2f, [1024, True, 1]]  # 9: Standard P5 (512->512 channels with s scaling)
+
+# Standard YOLOv12s head with adjusted layer indices
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 10 (512->512 channels)
+  - [[-1, 7], 1, Concat, [1]] # 11: cat backbone P4 enhanced (512+256=768 channels)
+  - [-1, 3, A2C2f, [512, False, -1]] # 12 (768->256 channels with s scaling)
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 13 (256->256 channels)
+  - [[-1, 4], 1, Concat, [1]] # 14: cat backbone P3 (256+256=512 channels)
+  - [-1, 3, A2C2f, [256, False, -1]] # 15: P3/8-small (512->128 channels with s scaling)
+
+  - [-1, 1, Conv, [256, 3, 2]] # 16 (128->128 channels with s scaling)
+  - [[-1, 12], 1, Concat, [1]] # 17: cat head P4 (128+256=384 channels)
+  - [-1, 3, A2C2f, [512, False, -1]] # 18: P4/16-medium (384->256 channels with s scaling)
+
+  - [-1, 1, Conv, [512, 3, 2]] # 19 (256->256 channels with s scaling)
+  - [[-1, 9], 1, Concat, [1]] # 20: cat head P5 (256+512=768 channels)
+  - [-1, 3, C3k2, [1024, True]] # 21: P5/32-large (768->512 channels with s scaling)
+
+  - [[15, 18, 21], 1, OBB, [nc, 1]] # 22: OBB(P3=128, P4=256, P5=512) with 1 angle parameter
