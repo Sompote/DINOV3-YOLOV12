@@ -2,6 +2,9 @@
 
 This document describes the OBB (Oriented Bounding Box) detection capabilities added to the YOLOv12-DINO3 architecture. OBB detection is useful for detecting rotated objects in aerial imagery, document analysis, and other applications where object orientation matters.
 
+![OBB Detection Example](assets/P0795.jpg)
+*Example: OBB detection on aerial imagery showing rotated bounding boxes for ships and other objects*
+
 ## Overview
 
 OBB detection extends standard object detection by predicting rotated bounding boxes with 5 parameters:

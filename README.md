@@ -1972,6 +1972,9 @@ python train_yolov12_dino.py \
 
 YOLOv12-DINO3 now supports **OBB detection** for rotated objects - ideal for aerial imagery, document analysis, and applications where object orientation matters.
 
+![OBB Detection Example](assets/P0795.jpg)
+*Example: OBB detection on aerial imagery showing rotated bounding boxes for ships and other objects*
+
 ### Quick Start
 
 ```bash

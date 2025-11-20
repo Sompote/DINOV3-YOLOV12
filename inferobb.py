@@ -60,7 +60,9 @@ def parse_args():
     parser.add_argument("--show", action="store_true", help="Display results")
     parser.add_argument("--show-labels", action="store_true", default=True, help="Show labels (default: True)")
     parser.add_argument("--show-conf", action="store_true", default=True, help="Show confidence (default: True)")
-    parser.add_argument("--line-width", type=int, default=None, help="Line width for bounding boxes")
+    parser.add_argument("--line-width", type=int, default=1, help="Line width for bounding boxes (default: 1)")
+    parser.add_argument("--font-size", type=float, default=0.3, help="Font size for labels (default: 0.3)")
+    parser.add_argument("--no-text", action="store_true", help="Hide all text labels (boxes only)")
 
     # Project settings
     parser.add_argument(
@@ -101,6 +103,10 @@ def main():
     if hasattr(model, "task") and model.task != "obb":
         print(f"Warning: Model task is '{model.task}', expected 'obb'")
 
+    # Handle --no-text flag
+    show_labels = False if args.no_text else args.show_labels
+    show_conf = False if args.no_text else args.show_conf
+
     # Run inference
     results = model.predict(
         source=args.source,
@@ -114,8 +120,8 @@ def main():
         save_conf=args.save_conf,
         save_crop=args.save_crop,
         show=args.show,
-        show_labels=args.show_labels,
-        show_conf=args.show_conf,
+        show_labels=show_labels,
+        show_conf=show_conf,
         line_width=args.line_width,
         project=args.project,
         name=args.name,
