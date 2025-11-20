@@ -63,8 +63,8 @@ Use the `trainobb.py` CLI script for easy training:
 # Basic training
 python trainobb.py --model yolov12s-p0only --data path/to/dataset.yaml
 
-# Train with custom settings
-python trainobb.py --model yolov12m-dualp0p3 --data dota.yaml --epochs 200 --batch 8 --imgsz 1024
+# Train with custom settings (using included DOTAv1.yaml)
+python trainobb.py --model yolov12m-dualp0p3 --data DOTAv1.yaml --epochs 200 --batch 8 --imgsz 1024
 
 # Multi-GPU training
 python trainobb.py --model yolov12l-p0only --data dataset.yaml --device 0,1,2,3 --batch 64
@@ -519,7 +519,7 @@ DINOV3-YOLOV12/
 |-- trainobb.py                    # CLI training script
 |-- inferobb.py                    # CLI inference script
 |-- train_yolov12_dino_obb.py      # Python training script
-|-- test_obb_model.py              # Model testing script
+|-- DOTAv1.yaml                    # DOTA v1.0 dataset configuration
 |-- README_OBB.md                  # This documentation
 +-- ultralytics/
     +-- cfg/
@@ -588,34 +588,40 @@ DOTA-YOLO/
     +-- val/
 ```
 
-### Step 3: Create Dataset Configuration
+### Step 3: Use Included Dataset Configuration
 
-Create `dota.yaml`:
+This repository includes a ready-to-use `DOTAv1.yaml` configuration file:
 
 ```yaml
-# DOTA dataset configuration
-path: /path/to/DOTA-YOLO
-train: images/train
-val: images/val
+# DOTAv1.yaml (included in repository)
+path: DOTAv1  # dataset root dir
+train: images/train  # train images (relative to 'path') 1411 images
+val: images/val  # val images (relative to 'path') 458 images
+test: images/test  # test images (optional) 937 images
 
-# DOTA v1.0 classes (15 classes)
+# Classes for DOTA 1.0 (15 classes)
 names:
   0: plane
   1: ship
-  2: storage-tank
-  3: baseball-diamond
-  4: tennis-court
-  5: basketball-court
-  6: ground-track-field
+  2: storage tank
+  3: baseball diamond
+  4: tennis court
+  5: basketball court
+  6: ground track field
   7: harbor
   8: bridge
-  9: large-vehicle
-  10: small-vehicle
+  9: large vehicle
+  10: small vehicle
   11: helicopter
   12: roundabout
-  13: soccer-ball-field
-  14: swimming-pool
+  13: soccer ball field
+  14: swimming pool
+
+# Auto-download from Ultralytics assets
+download: https://github.com/ultralytics/assets/releases/download/v0.0.0/DOTAv1.zip
 ```
+
+The dataset will be automatically downloaded when you start training. If you prefer to create a custom configuration, use the format above.
 
 For DOTA v1.5 (16 classes), add:
 ```yaml
@@ -634,17 +640,17 @@ For DOTA v2.0 (18 classes), add:
 #### Using CLI (Recommended)
 
 ```bash
-# Train YOLOv12s with P0-only DINO on DOTA
-python trainobb.py --model yolov12s-p0only --data dota.yaml --epochs 100 --batch 16 --imgsz 1024
+# Train YOLOv12s with P0-only DINO on DOTA (using included DOTAv1.yaml)
+python trainobb.py --model yolov12s-p0only --data DOTAv1.yaml --epochs 100 --batch 16 --imgsz 1024
 
 # Train YOLOv12m with DualP0P3 DINO on DOTA
-python trainobb.py --model yolov12m-dualp0p3 --data dota.yaml --epochs 200 --batch 8 --imgsz 1024
+python trainobb.py --model yolov12m-dualp0p3 --data DOTAv1.yaml --epochs 200 --batch 8 --imgsz 1024
 
 # Train YOLOv12l with DualP0P3 DINO on DOTA (high accuracy)
-python trainobb.py --model yolov12l-dualp0p3 --data dota.yaml --epochs 300 --batch 4 --imgsz 1024 --device 0,1
+python trainobb.py --model yolov12l-dualp0p3 --data DOTAv1.yaml --epochs 300 --batch 4 --imgsz 1024 --device 0,1
 
 # Train with custom name
-python trainobb.py --model yolov12m-p0only --data dota.yaml --epochs 150 --name dota_experiment --project runs/dota
+python trainobb.py --model yolov12m-p0only --data DOTAv1.yaml --epochs 150 --name dota_experiment --project runs/dota
 ```
 
 #### Using Python API
@@ -655,9 +661,9 @@ from ultralytics import YOLO
 # Load model
 model = YOLO("ultralytics/cfg/models/v12/yolov12m-dualp0p3-dino3-vitb16-obb.yaml")
 
-# Train on DOTA
+# Train on DOTA using included DOTAv1.yaml
 results = model.train(
-    data="dota.yaml",
+    data="DOTAv1.yaml",
     epochs=200,
     imgsz=1024,  # DOTA images are high resolution
     batch=8,
@@ -692,9 +698,9 @@ from ultralytics import YOLO
 # Load trained model
 model = YOLO("runs/dota/yolov12m-dino3-dota/weights/best.pt")
 
-# Validate on DOTA val set
+# Validate on DOTA val set using included DOTAv1.yaml
 metrics = model.val(
-    data="dota.yaml",
+    data="DOTAv1.yaml",
     imgsz=1024,
     batch=8,
     conf=0.001,
