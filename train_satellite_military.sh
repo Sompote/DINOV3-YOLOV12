@@ -7,8 +7,8 @@
 # DINOV3-YOLOV12 on satellite/aerial military facility detection.
 #
 # Usage:
-#   chmod +x 20260729_train_satellite_military.sh
-#   ./20260729_train_satellite_military.sh [mode]
+#   chmod +x train_satellite_military.sh
+#   ./train_satellite_military.sh [mode]
 #
 # Modes:
 #   prepare    - Prepare dataset (tile + split)
@@ -26,7 +26,7 @@ set -e
 # Adjust these paths to match your environment
 
 # Dataset paths
-DATASET_YAML="ultralytics/cfg/datasets/20260729_military_satellite.yaml"
+DATASET_YAML="ultralytics/cfg/datasets/military-satellite.yaml"
 DATASET_DIR="../datasets/military_satellite"
 RAW_IMAGES_DIR=""  # Set this to your raw satellite images directory
 
@@ -67,13 +67,13 @@ print_header() {
 check_dataset() {
     if [ ! -f "$DATASET_YAML" ]; then
         echo "Error: Dataset config not found: $DATASET_YAML"
-        echo "Run: ./20260729_train_satellite_military.sh prepare"
+        echo "Run: ./train_satellite_military.sh prepare"
         exit 1
     fi
 
     if [ ! -d "$DATASET_DIR/images/train" ]; then
         echo "Error: Training images not found at $DATASET_DIR/images/train"
-        echo "Run: ./20260729_train_satellite_military.sh prepare"
+        echo "Run: ./train_satellite_military.sh prepare"
         exit 1
     fi
 }
@@ -90,7 +90,7 @@ mode_prepare() {
         echo "  RAW_IMAGES_DIR=\"/path/to/satellite_images\""
         echo ""
         echo "Or run directly:"
-        echo "  python 20260729_prepare_satellite_dataset.py \\"
+        echo "  python prepare_satellite_dataset.py \\"
         echo "    --source /path/to/satellite_images \\"
         echo "    --output $DATASET_DIR \\"
         echo "    --tile-size $IMAGE_SIZE \\"
@@ -103,7 +103,7 @@ mode_prepare() {
     echo "Output to: $DATASET_DIR"
     echo ""
 
-    python 20260729_prepare_satellite_dataset.py \
+    python prepare_satellite_dataset.py \
         --source "$RAW_IMAGES_DIR" \
         --output "$DATASET_DIR" \
         --tile-size "$IMAGE_SIZE" \
@@ -243,7 +243,7 @@ mode_resume() {
 
 mode_validate() {
     print_header "Dataset Validation"
-    python 20260729_prepare_satellite_dataset.py --output "$DATASET_DIR" --validate-only
+    python prepare_satellite_dataset.py --output "$DATASET_DIR" --validate-only
 }
 
 # ======================== Main ========================
@@ -274,7 +274,7 @@ case "$MODE" in
         ;;
     help|--help|-h|*)
         echo ""
-        echo "Usage: ./20260729_train_satellite_military.sh [mode]"
+        echo "Usage: ./train_satellite_military.sh [mode]"
         echo ""
         echo "Modes:"
         echo "  prepare    Prepare dataset (tile large images, split train/val)"
@@ -287,10 +287,10 @@ case "$MODE" in
         echo ""
         echo "Recommended workflow:"
         echo "  1. Edit RAW_IMAGES_DIR in this script"
-        echo "  2. ./20260729_train_satellite_military.sh prepare"
-        echo "  3. ./20260729_train_satellite_military.sh validate"
-        echo "  4. ./20260729_train_satellite_military.sh baseline    # establish baseline"
-        echo "  5. ./20260729_train_satellite_military.sh dualp0p3    # DINO enhanced (recommended)"
+        echo "  2. ./train_satellite_military.sh prepare"
+        echo "  3. ./train_satellite_military.sh validate"
+        echo "  4. ./train_satellite_military.sh baseline    # establish baseline"
+        echo "  5. ./train_satellite_military.sh dualp0p3    # DINO enhanced (recommended)"
         echo ""
         echo "Configuration (edit at top of this script):"
         echo "  YOLO_SIZE=$YOLO_SIZE  DINO_VARIANT=$DINO_VARIANT  IMAGE_SIZE=$IMAGE_SIZE"
