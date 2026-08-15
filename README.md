@@ -1720,6 +1720,67 @@ model = YOLO('yolov12{n/s/m/l/x}.pt')
 model.export(format="engine", half=True)  # or format="onnx"
 ```
 
+<details>
+<summary><b>⚡ TensorRT Conversion for DINO-YOLO Models (click to expand)</b></summary>
+
+### Overview
+
+Trained DINO-YOLO checkpoints (including the DINOv3 weights baked inside the `.pt`) convert to TensorRT via a two-stage flow:
+
+```
+best.pt  ──►  ONNX (portable, any machine)  ──►  TensorRT engine (NVIDIA GPU only)
+```
+
+The DINOv3 ViT is part of the same graph as YOLOv12, so its weights are exported automatically — **no separate conversion of the DINO weights is needed**.
+
+### Quick Start
+
+```bash
+# Stage 1 — Export ONNX (works on any machine, even without a GPU):
+python export_tensorrt.py --weights runs/detect/train/weights/best.pt --format onnx
+
+# Stage 2 — Build the TensorRT engine (run on the NVIDIA GPU machine):
+python export_tensorrt.py --weights best.pt --format engine --half
+
+# Alternative: build the engine from the ONNX with trtexec:
+trtexec --onnx=best.onnx --saveEngine=best.engine --fp16
+```
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--weights` | (required) | Path to trained `.pt` checkpoint |
+| `--format` | `onnx` | `onnx` or `engine` (TensorRT) |
+| `--imgsz` | `640` | **Fixed** inference image size (see caveats) |
+| `--half` | off | FP16 export — recommended for TensorRT (~2× faster) |
+| `--batch` | `1` | Fixed batch size |
+| `--workspace` | `4` | TensorRT builder workspace in GB |
+
+### DINO-Specific Caveats
+
+1. **Fixed input size is required** (`dynamic=False`, enforced by the script). The DINO backbone/preprocessor contains shape-dependent Python branching (patch-grid fitting, padding/truncation) that resolves to constants at trace time only when the input shape is fixed. Pick `--imgsz` to match your deployment resolution.
+
+2. **SDPA export bug on torch < 2.4.** Exporting the ViT's `scaled_dot_product_attention` fails with `TypeError: z_(): incompatible function arguments ... 0.125`. The script automatically switches the HuggingFace DINOv3 submodules to eager attention for export — identical outputs, and harmless on newer torch versions.
+
+3. **Warm-up forward pass.** DINO projection layers can be created lazily on the first forward; the script runs a dummy pass before tracing so the exported graph is complete.
+
+4. **Expect large artifacts.** A ViT-B variant produces a ~385 MB ONNX (fp32) / ~200 MB engine (fp16) and longer TensorRT build times than plain YOLOv12. Raise `--workspace` if the builder runs out of memory.
+
+5. **NMS stays outside the engine** — postprocess exactly as with `.pt` inference.
+
+### Verify Before Deploying
+
+Numerical parity between `.pt` and ONNX has been validated (max abs diff ~1.5e-4, ordinary fp32 noise). Still, sanity-check your own checkpoint before building the engine:
+
+```bash
+yolo predict model=best.onnx imgsz=640 source=path/to/test_image.jpg
+```
+
+Compare a few detections against the original `.pt` — they should match.
+
+</details>
+
 
 ## 🖥️ Interactive Demo
 
