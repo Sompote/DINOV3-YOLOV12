@@ -1676,6 +1676,29 @@ python inference.py \
 | **YOLOv12s-dino3-dual** | 🎪 Accurate | 8GB | Complex scenes | 0.2-0.35 |
 | **YOLOv12l-dino3-vitl16** | 🏆 Maximum | 16GB | Research/High-end | 0.15-0.3 |
 
+### ⚡ **Measured Inference Latency**
+
+Real timings for `yolov12m-dualp0p3-dino3-vitb16` (107.3 M params), 640×640, batch 1, on an **RTX 5080** — torch 2.12.0+cu130, TensorRT 10.16.1.11, 30 warm-up + 200 timed iterations, CUDA-event timed.
+
+| Runtime | Forward only | End-to-end `predict()` | FPS | Speedup |
+|:--------|:-------------|:-----------------------|:----|:--------|
+| **TensorRT FP16** | **2.72 ms** (p99 2.89) | **4.18 ms** | **367** | **9.6×** |
+| PyTorch FP16 | 26.18 ms (p99 26.85) | 27.14 ms | 38 | 1.0× |
+| PyTorch FP32 | 26.61 ms (p99 29.99) | 27.99 ms | 38 | 1.0× |
+
+Engine stage breakdown: `1.03 pre + 2.63 infer + 0.39 post ms`. Reproduce with:
+
+```bash
+python benchmark_latency.py --engine best.engine --pt best.pt --imgsz 640
+```
+
+Two things worth noting before quoting these numbers:
+
+- **Forward-only ≠ end-to-end.** *Forward only* is the network in isolation (the honest "the engine is X ms" figure); *end-to-end* adds letterboxing and NMS, which is what you actually pay per image. Once the backbone drops to 2.6 ms, preprocessing becomes ~25% of the cost.
+- **PyTorch FP16 ≈ FP32** (26.2 vs 26.6 ms). In eager mode this model is not tensor-core bound, so essentially the whole speedup comes from TensorRT's kernel fusion and scheduling — not from reduced precision. Running `.pt` with `half=True` alone buys you almost nothing.
+
+See the **TensorRT Conversion** section under [Export](#export) for how to build the engine, and for two failure modes that silently produce wrong output.
+
 ### 🔧 **Advanced Inference Options**
 
 ```python
@@ -1736,6 +1759,9 @@ The DINOv3 ViT is part of the same graph as YOLOv12, so its weights are exported
 ### Quick Start
 
 ```bash
+# Stage 0 — Export dependencies (not covered by requirements.txt):
+pip install onnx onnxslim onnxscript "transformers>=4.56,<4.57"
+
 # Stage 1 — Export ONNX (works on any machine, even without a GPU):
 python export_tensorrt.py --weights runs/detect/train/weights/best.pt --format onnx
 
@@ -1769,6 +1795,32 @@ trtexec --onnx=best.onnx --saveEngine=best.engine --fp16
 
 5. **NMS stays outside the engine** — postprocess exactly as with `.pt` inference.
 
+6. **`transformers` must match the version that trained the checkpoint.** The DINOv3 ViT is *pickled inside the `.pt`*, so its module layout is frozen at training time while its `forward()` code comes from whatever `transformers` is installed. Checkpoints trained with 4.56.x carry the layout `embeddings / rope_embeddings / layer / norm`; loading them under `transformers` 5.x fails with:
+
+   ```
+   AttributeError: 'DINOv3ViTModel' object has no attribute 'model'
+   ```
+
+   Pin `transformers>=4.56,<4.57`. Check what a checkpoint expects with:
+
+   ```python
+   import torch
+   ck = torch.load("best.pt", map_location="cpu", weights_only=False)
+   m = ck.get("ema") or ck["model"]
+   d = next(x.dino_model for x in m.modules() if hasattr(x, "dino_model"))
+   print(d.config.transformers_version, [n for n, _ in d.named_children()])
+   ```
+
+7. **The FP16 engine has FP32 input/output bindings — never feed it half tensors.** `--half` makes TensorRT *compute* in FP16, but the network I/O stays FP32 (the build log confirms: `input "images" ... DataType.FLOAT`). Ultralytics binds the input by raw pointer without converting, so a half tensor makes TensorRT read 4 bytes per element out of a 2-byte-per-element buffer. It reads past the end of the buffer, runs at **full speed, and silently returns garbage or NaN** — there is no error. The failure is nondeterministic, which makes it easy to mistake for a numerical problem.
+
+   ```python
+   model = YOLO("best.engine", task="detect")
+   model.predict(src, imgsz=640)                 # correct — dtype is auto-detected
+   model.predict(src, imgsz=640, half=True)      # WRONG — silent garbage/NaN
+   ```
+
+   The same applies to `AutoBackend`: pass `fp16=False` and let it read the real dtypes off the engine bindings. Verify with `AutoBackend("best.engine", ...).fp16`, which should report `False`.
+
 ### Verify Before Deploying
 
 Numerical parity between `.pt` and ONNX has been validated (max abs diff ~1.5e-4, ordinary fp32 noise). Still, sanity-check your own checkpoint before building the engine:
@@ -1778,6 +1830,42 @@ yolo predict model=best.onnx imgsz=640 source=path/to/test_image.jpg
 ```
 
 Compare a few detections against the original `.pt` — they should match.
+
+### Measured Results
+
+Benchmarked with `benchmark_latency.py` (in the repo root):
+
+```bash
+python benchmark_latency.py --engine best.engine --pt best.pt --imgsz 640
+```
+
+**Setup.** `yolov12m-dualp0p3-dino3-vitb16` (107.3 M params, 14,100 GFLOPs as reported by Ultralytics), 640×640, batch 1, RTX 5080 (16 GB), torch 2.12.0+cu130, TensorRT 10.16.1.11. 30 warm-up + 200 timed iterations, CUDA-event timed with a per-iteration `synchronize()`.
+
+| | forward only | end-to-end `predict()` | FPS (forward) |
+|---|---|---|---|
+| **TensorRT FP16** | **2.72 ms** (p99 2.89) | **4.18 ms** | **367** |
+| PyTorch FP16 | 26.18 ms (p99 26.85) | 27.14 ms | 38 |
+| PyTorch FP32 | 26.61 ms (p99 29.99) | 27.99 ms | 38 |
+
+**≈9.6× faster** on the forward pass and **≈6.5×** end-to-end. Stage breakdown for the engine: `1.03 pre + 2.63 infer + 0.39 post ms` — once the backbone drops to 2.6 ms, letterboxing becomes ~25% of the per-image cost.
+
+Note that PyTorch FP16 and FP32 are within noise of each other (26.2 vs 26.6 ms): in eager mode this model is not tensor-core bound, so essentially the entire speedup comes from TensorRT's kernel fusion and scheduling rather than from reduced precision.
+
+**Two numbers, not one.** *Forward only* is the network in isolation — the honest "the engine is X ms" figure. *End-to-end* is Ultralytics' full path including letterbox and NMS, which is what you actually pay per image in a pipeline. Quote whichever matches your claim.
+
+**Build cost.** 104 s total on the RTX 5080 (65 s of it TensorRT engine generation), producing a 209 MB engine from a 430 MB intermediate ONNX.
+
+**Numerical parity** between `.pt` (FP32) and the FP16 engine on identical input:
+
+| metric | value |
+|---|---|
+| cosine similarity (full output tensor) | 0.99988 |
+| confidence correlation across 8400 anchors | 0.972 |
+| box max diff, top-20 anchors by confidence | 3.6 px |
+
+Consistent with ordinary FP16 accumulation error in the ViT. Large box differences do appear on low-confidence background anchors, but those are unconstrained during training and get discarded by NMS — compare only anchors that survive your confidence threshold, or the numbers will look alarming for no reason.
+
+> **Caveat on these parity figures.** They were measured on an image containing no positive detections, so they compare the two models near the noise floor rather than on confident boxes. They show the graph was exported correctly, but they are *not* a substitute for validating mAP on your own dataset. Before deploying, run `yolo val model=best.engine data=your_data.yaml imgsz=640` and compare against the `.pt`.
 
 </details>
 
