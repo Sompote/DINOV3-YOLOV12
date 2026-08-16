@@ -1,0 +1,41 @@
+# Military Satellite Imagery Dataset for DINOV3-YOLOV12
+# Dataset for detecting military facilities in satellite/aerial imagery
+#
+# Directory structure:
+#   datasets/
+#   └── military_satellite/
+#       ├── images/
+#       │   ├── train/    # Training images (80%)
+#       │   └── val/      # Validation images (20%)
+#       └── labels/
+#           ├── train/    # YOLO format labels for training
+#           └── val/      # YOLO format labels for validation
+#
+# Label format (YOLO): class_id center_x center_y width height (normalized 0-1)
+# Example: 0 0.45 0.52 0.30 0.25
+#
+# Annotation tools: CVAT, Label Studio, Roboflow, or labelImg
+
+# Dataset root directory (adjust to your actual path)
+path: ../datasets/military_satellite
+train: images/train
+val: images/val
+test: images/val  # Use val as test if no separate test set
+
+# Number of classes
+nc: 12
+
+# Class names - military facility categories
+names:
+  0: aircraft                # Fixed-wing aircraft on tarmac/runway
+  1: helicopter              # Rotary-wing aircraft
+  2: vehicle                 # Military vehicles (tanks, APCs, trucks)
+  3: ship                    # Naval vessels
+  4: runway                  # Airfield runways
+  5: hangar                  # Aircraft shelters/hangars
+  6: radar_station           # Radar/communication installations
+  7: storage_tank            # Fuel/material storage tanks
+  8: bunker                  # Hardened shelters/bunkers
+  9: military_building       # Barracks, HQ, command centers
+  10: missile_launcher       # SAM sites, missile launch pads
+  11: naval_port             # Port/dock facilities
